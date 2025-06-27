@@ -1,0 +1,148 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  // output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("USER") // USER, ADMIN, SUPER_ADMIN
+  isVerified Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  address   String?
+  phone     String?
+  
+  // Relations
+  wallets         Wallet[]
+  savingsPlans     SavingsPlan[]
+  sentTransfers   Transaction[] @relation("SenderTransactions")
+  receivedTransfers Transaction[] @relation("ReceiverTransactions")
+  topupRequests   TopupRequest[]
+  logs            Log[]
+}
+
+model Wallet {
+  id            String   @id @default(uuid())
+  userId        String
+  walletNumber  String   @unique
+  name          String   @default("Wallet")
+  description   String?
+  balance       Decimal  @default(0)
+  currency      String   @default("IDR")
+  walletType    String?  @default("MAIN") // MAIN, SAVINGS, BUSINESS
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  user                User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sentTransactions    Transaction[] @relation("SenderWalletTransactions")
+  receivedTransactions Transaction[] @relation("ReceiverWalletTransactions")
+  topupRequests       TopupRequest[]
+  
+  @@index([userId])
+  SavingsPlan SavingsPlan[]
+}
+
+model Transaction {
+  id              String   @id @default(uuid())
+  senderId        String
+  receiverId      String
+  senderWalletId  String
+  receiverWalletId String
+  amount          Decimal
+  currency        String   @default("IDR")
+  status          String   @default("PENDING") // PENDING, COMPLETED, FAILED, CANCELLED
+  description     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  completedAt     DateTime?
+  
+  // Relations
+  sender         User @relation("SenderTransactions", fields: [senderId], references: [id])
+  receiver       User @relation("ReceiverTransactions", fields: [receiverId], references: [id])
+  senderWallet   Wallet @relation("SenderWalletTransactions", fields: [senderWalletId], references: [id])
+  receiverWallet Wallet @relation("ReceiverWalletTransactions", fields: [receiverWalletId], references: [id])
+  
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([senderWalletId])
+  @@index([receiverWalletId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model TopupRequest {
+  id          String   @id @default(uuid())
+  userId      String
+  walletId    String
+  amount      Decimal
+  currency    String   @default("IDR")
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED, COMPLETED
+  paymentMethod String // BANK_TRANSFER, CREDIT_CARD, CASH, etc.
+  approvedBy  String?
+  createdAt   DateTime @default(now())
+  approvedAt  DateTime?
+  completedAt DateTime?
+  
+  // Relations
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([walletId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model SavingsPlan {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  walletId  String   @unique
+  wallet    Wallet   @relation(fields: [walletId], references: [id])
+
+  title       String
+  goalAmount  Decimal
+  currentAmount Decimal @default(0)
+  status      String   @default("ACTIVE") // or enum
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+
+
+model Log {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String   // LOGIN, LOGOUT, TRANSFER, TOPUP_REQUEST, etc.
+  entity    String?  // USER, WALLET, TRANSACTION, etc.
+  details   String?  // JSON string for additional details
+  timestamp DateTime @default(now())
+  level     String   @default("INFO") // INFO, WARN, ERROR
+  
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([userId])
+  @@index([action])
+  @@index([timestamp])
+  @@index([level])
+}
