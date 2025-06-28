@@ -47,6 +47,8 @@ model Wallet {
   walletType    String?  @default("MAIN") // MAIN, SAVINGS, BUSINESS
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  deletedAt     DateTime? // Nullable for soft delete
+  isDeleted   Boolean  @default(false) // Soft delete flag
 
   // Relations
   user                User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -62,8 +64,8 @@ model Transaction {
   id              String   @id @default(uuid())
   senderId        String
   receiverId      String
-  senderWalletId  String
-  receiverWalletId String
+  senderWalletId  String? // nullable
+  receiverWalletId String? // nullable
   amount          Decimal
   currency        String   @default("IDR")
   status          String   @default("PENDING") // PENDING, COMPLETED, FAILED, CANCELLED
@@ -75,8 +77,8 @@ model Transaction {
   // Relations
   sender         User @relation("SenderTransactions", fields: [senderId], references: [id])
   receiver       User @relation("ReceiverTransactions", fields: [receiverId], references: [id])
-  senderWallet   Wallet @relation("SenderWalletTransactions", fields: [senderWalletId], references: [id])
-  receiverWallet Wallet @relation("ReceiverWalletTransactions", fields: [receiverWalletId], references: [id])
+  senderWallet   Wallet? @relation("SenderWalletTransactions", fields: [senderWalletId], references: [id])
+  receiverWallet Wallet? @relation("ReceiverWalletTransactions", fields: [receiverWalletId], references: [id])
   
   @@index([senderId])
   @@index([receiverId])
@@ -89,7 +91,7 @@ model Transaction {
 model TopupRequest {
   id          String   @id @default(uuid())
   userId      String
-  walletId    String
+  walletId    String?
   amount      Decimal
   currency    String   @default("IDR")
   status      String   @default("PENDING") // PENDING, APPROVED, REJECTED, COMPLETED
@@ -101,8 +103,8 @@ model TopupRequest {
   
   // Relations
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
-  
+  wallet Wallet? @relation(fields: [walletId], references: [id])
+
   @@index([userId])
   @@index([walletId])
   @@index([status])
@@ -114,8 +116,8 @@ model SavingsPlan {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
 
-  walletId  String   @unique
-  wallet    Wallet   @relation(fields: [walletId], references: [id])
+  walletId  String?   @unique
+  wallet    Wallet?   @relation(fields: [walletId], references: [id])
 
   title       String
   goalAmount  Decimal

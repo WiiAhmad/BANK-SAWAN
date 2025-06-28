@@ -116,8 +116,6 @@ export async function POST(request: NextRequest) {
       console.log('Wallet created successfully')
     } catch (walletError) {
       console.error('Wallet creation error:', walletError)
-      // Don't return error here, user is already created
-      // You might want to handle this differently
     }
 
     // Log the registration

@@ -16,19 +16,19 @@ export async function GET(request: NextRequest) {
 
     // Decrypt the user token to get user information
     const user = decryptToken(userToken)
-    console.log('Decrypted user token:', user)
+    // console.log('Decrypted user token:', user)
 
     // Fetch user wallets associated with the userId
     const wallets = await prisma.wallet.findMany({
       where: {
-        userId: user?.userId // Ensure userId is correctly accessed from the decrypted token    
-        },
-        orderBy: {
-            createdAt: 'asc' // Order wallets by creation date, most recent first
-            // desc or asc
-            }
+      userId: user?.userId, // Ensure userId is correctly accessed from the decrypted token
+      isDeleted: false // Only fetch wallets that are not deleted
+      },
+      orderBy: {
+      createdAt: 'asc' // Order wallets by creation date, oldest first
+      }
     })
-    console.log('Fetched wallets:', wallets)
+    // console.log('Fetched wallets:', wallets)
 
     return NextResponse.json(wallets)
   } catch (error) {
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
           userId: user.userId,
           walletNumber,
           currency: 'IDR',
-          walletType: 'Secondary', // Assuming this is a secondary wallet
+          walletType: 'SECONDARY', // Assuming this is a secondary wallet
           name: name,
           description: description || '', // Optional description
         }

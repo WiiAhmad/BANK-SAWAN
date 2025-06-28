@@ -3,30 +3,12 @@
 
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { decryptToken } from '@/lib/auth'; // Assuming you have a decryptToken function
-
-// Helper function for authentication and user retrieval
-async function authenticateRequest(request: NextRequest) {
-  const userToken = request.cookies.get('token')?.value;
-
-  if (!userToken) {
-    return { error: 'Authorization token is required', status: 401, user: null };
-  }
-
-  try {
-    const user = decryptToken(userToken);
-    if (!user || !user.userId) {
-      return { error: 'Invalid or expired token', status: 401, user: null };
-    }
-    return { user, error: null, status: 200 };
-  } catch (error) {
-    return { error: 'Invalid token format', status: 401, user: null };
-  }
-}
+import { authenticateRequest } from '@/lib/auth'; // Assuming you have a decryptToken function
 
 /**
  * GET a specific wallet by its ID.
  * Ensures the wallet belongs to the authenticated user.
+ * Now excludes soft-deleted wallets (isDeleted=true).
  */
 export async function GET(
   request: NextRequest,
@@ -38,13 +20,13 @@ export async function GET(
       return NextResponse.json({ error }, { status });
     }
 
-    const { id: walletId } = await params; // Await params for Next.js dynamic route
+    const { id: walletId } = await params;
 
     const wallet = await prisma.wallet.findUnique({
       where: {
         id: walletId,
-        // Security check: Ensure the wallet belongs to the logged-in user
         userId: user!.userId,
+        isDeleted: false, // Exclude soft-deleted wallets
       },
     });
 
@@ -108,6 +90,15 @@ export async function PATCH(
       },
     });
 
+    //add log UPDATE WALLET
+    await prisma.log.create({
+      data: {
+        userId: user!.userId,
+        action: 'UPDATE_WALLET',
+        details: `Updated wallet ${walletId} with name: ${name}, description: ${description}`,
+      },
+    });
+
     return NextResponse.json(updatedWallet);
   } catch (error) {
     console.error('Error updating wallet:', error);
@@ -121,6 +112,7 @@ export async function PATCH(
 /**
  * DELETE a specific wallet by its ID.
  * Ensures the wallet belongs to the authenticated user.
+ * Now performs a soft delete (sets isDeleted=true, deletedAt=now()).
  */
 export async function DELETE(
   request: NextRequest,
@@ -132,28 +124,99 @@ export async function DELETE(
       return NextResponse.json({ error }, { status });
     }
 
-    const { id: walletId } = await params; // Await params for Next.js dynamic route
+    const { id: walletId } = params;
 
-    // To ensure a user can only delete their own wallet, we use a compound where clause.
-    // The delete will only succeed if a wallet with this ID AND this userId exists.
-    const deleteResult = await prisma.wallet.deleteMany({
+    // Prevent deletion of the main wallet
+    const wallet = await prisma.wallet.findFirst({
       where: {
         id: walletId,
         userId: user!.userId,
+        isDeleted: false,
+      },
+      select: {
+        id: true,
+        userId: true,
+        name: true,
+        createdAt: true,
+        updatedAt: true,
+        walletNumber: true,
+        description: true,
+        balance: true,
+        currency: true,
+        walletType: true,
       },
     });
 
-    // deleteMany returns a count of deleted records.
-    // If the count is 0, it means no record was found matching both criteria.
-    if (deleteResult.count === 0) {
+    if (!wallet) {
       return NextResponse.json(
         { error: 'Wallet not found or access denied' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({ message: 'Wallet deleted successfully' }, { status: 200 });
+    if (wallet.walletType === "MAIN") {
+      return NextResponse.json(
+        { error: 'Cannot delete the main wallet' },
+        { status: 400 }
+      );
+    }
 
+    // If wallet is SAVINGS or SECONDARY and has balance, transfer to MAIN wallet
+    if ((wallet.walletType === 'SAVINGS' || wallet.walletType === 'SECONDARY') && Number(wallet.balance) > 0) {
+      const mainWallet = await prisma.wallet.findFirst({
+        where: {
+          userId: user!.userId,
+          walletType: 'MAIN',
+          isDeleted: false,
+        },
+      });
+      if (!mainWallet) {
+        return NextResponse.json({ error: 'Main wallet not found for transfer' }, { status: 500 });
+      }
+      await prisma.$transaction([
+        prisma.wallet.update({
+          where: { id: mainWallet.id },
+          data: { balance: { increment: wallet.balance } },
+        }),
+        prisma.wallet.update({
+          where: { id: wallet.id },
+          data: { balance: 0 },
+        }),
+        prisma.transaction.create({
+          data: {
+            senderId: user!.userId,
+            receiverId: user!.userId,
+            senderWalletId: wallet.id,
+            receiverWalletId: mainWallet.id,
+            amount: wallet.balance,
+            currency: wallet.currency,
+            status: 'COMPLETED',
+            description: `Transfer balance from deleted ${wallet.walletType} wallet (${wallet.walletNumber}) to MAIN wallet`,
+            completedAt: new Date(),
+          },
+        }),
+      ]);
+    }
+
+    // Soft delete: set isDeleted=true and deletedAt=now()
+    await prisma.wallet.update({
+      where: { id: walletId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    });
+
+    await prisma.log.create({
+      data: {
+        userId: user!.userId,
+        entity: 'USER',
+        action: 'DELETE_WALLET',
+        details: `Soft deleted wallet ${walletId} (${wallet.walletType})`,
+      },
+    });
+
+    return NextResponse.json({ message: 'Wallet deleted (soft) successfully' }, { status: 200 });
   } catch (error) {
     console.error('Error deleting wallet:', error);
     return NextResponse.json(

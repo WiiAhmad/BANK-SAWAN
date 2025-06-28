@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { NextRequest } from 'next/server'
 
 export async function hashPassword(password: string): Promise<string> {
   const saltRounds = 12
@@ -40,5 +41,23 @@ export function decryptToken(token: string): { userId: string; email: string; ro
   } catch (error) {
     console.error('Token decryption error:', error)
     return null
+  }
+}
+
+export async function authenticateRequest(request: NextRequest) {
+  const userToken = request.cookies.get('token')?.value;
+
+  if (!userToken) {
+    return { error: 'Authorization token is required', status: 401, user: null };
+  }
+
+  try {
+    const user = decryptToken(userToken);
+    if (!user || !user.userId) {
+      return { error: 'Invalid or expired token', status: 401, user: null };
+    }
+    return { user, error: null, status: 200 };
+  } catch (error) {
+    return { error: 'Invalid token format', status: 401, user: null };
   }
 }
