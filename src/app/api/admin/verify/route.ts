@@ -30,21 +30,22 @@ export async function GET(request: NextRequest) {
         );
         }
     
-        // Fetch all unverified users
+        // Fetch all users with verificationStatus PENDING
         const unverifiedUsers = await prisma.user.findMany({
-        where: {
-            isVerified: false,
-        },
-        select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-            createdAt: true,
-        },
-        orderBy: {
-            createdAt: 'asc',
-        },
+            where: {
+                verificationStatus: 'PENDING',
+            },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                createdAt: true,
+                verificationStatus: true,
+            },
+            orderBy: {
+                createdAt: 'asc',
+            },
         });
 
     // Optionally, you can log the request

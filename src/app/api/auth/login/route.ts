@@ -19,17 +19,24 @@ export async function POST(request: NextRequest) {
       where: { email }
     })
 
-    if (user?.isVerified === false) {
-      return NextResponse.json(
-        { error: 'User account is not verified' },
-        { status: 403 }
-      )
-    }
-
     if (!user) {
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
+      )
+    }
+
+    if (user.verificationStatus === 'REJECTED') {
+      return NextResponse.json(
+        { error: 'User verification was rejected' },
+        { status: 403 }
+      )
+    }
+
+    if (user.verificationStatus !== 'APPROVED') {
+      return NextResponse.json(
+        { error: 'User account is not verified' },
+        { status: 403 }
       )
     }
 

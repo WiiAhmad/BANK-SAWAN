@@ -20,6 +20,7 @@ async function main() {
       password: adminPassword,
       role: 'SUPER_ADMIN',
       isVerified: true, // Admins should be verified by default
+      verificationStatus: 'APPROVED', // Assuming super admins are always approved
     },
   });
 
@@ -32,6 +33,7 @@ async function main() {
       password: adminPassword,
       role: 'ADMIN',
       isVerified: true,
+      verificationStatus: 'APPROVED', // Assuming admins are always approved
     },
   });
 
@@ -50,6 +52,7 @@ async function main() {
       password: userPassword,
       role: 'USER',
       isVerified: true,
+      verificationStatus: 'APPROVED', //
     },
   });
 
@@ -73,6 +76,7 @@ async function main() {
       password: userPassword,
       role: 'USER',
       isVerified: false,
+      verificationStatus: 'PENDING', // Assuming unverified users have pending status
     },
   });
 
@@ -96,6 +100,7 @@ async function main() {
       password: userPassword,
       role: 'USER',
       isVerified: false,
+      verificationStatus: 'PENDING', // Assuming unverified users have pending status
     },
   });
 

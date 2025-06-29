@@ -10,6 +10,8 @@ export async function POST(
     try {
         // Await context to get params
         const { params } = await contextPromise;
+        const body = await request.json();
+        const { status } = body;
         console.log('params:', params);
         if (!params.id || typeof params.id !== 'string') {
             return NextResponse.json(
@@ -61,10 +63,16 @@ export async function POST(
             );
         }
 
-        // Verify the topup request
+        // Verify the topup request based on status from body
+        let newStatus: 'APPROVED' | 'REJECTED';
+        if (status === 'REJECTED') {
+            newStatus = 'REJECTED';
+        } else {
+            newStatus = 'APPROVED';
+        }
         const updatedTopup = await prisma.topupRequest.update({
             where: { id: topupId },
-            data: { status: 'APPROVED' }, // Change status to APPROVED
+            data: { status: newStatus }, // Change status to APPROVED or REJECTED
             select: {
                 id: true,
                 userId: true,
@@ -84,7 +92,7 @@ export async function POST(
         // Optionally, you can log the topup request creation
         await prisma.log.create({
             data: {
-                action: 'TOPUP_VERIFIED',
+                action: `TOPUP_${newStatus}`,
                 entity: 'WALLET',
                 details: JSON.stringify({
                     userId: user.userId,
@@ -96,8 +104,8 @@ export async function POST(
             },
         });
 
-        // Update the wallet balance
-        if (wallet) {
+        // Update the wallet balance only if approved
+        if (wallet && newStatus === 'APPROVED') {
             await prisma.wallet.update({
                 where: { id: wallet.id },
                 data: {

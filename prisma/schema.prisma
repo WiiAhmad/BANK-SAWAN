@@ -22,6 +22,7 @@ model User {
   password  String
   role      String   @default("USER") // USER, ADMIN, SUPER_ADMIN
   isVerified Boolean  @default(false)
+  verificationStatus String @default("PENDING") // PENDING, APPROVED, REJECTED
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   address   String?
@@ -121,10 +122,14 @@ model SavingsPlan {
 
   title       String
   goalAmount  Decimal
+  description String?
+  targetDate  DateTime
   currentAmount Decimal @default(0)
-  status      String   @default("ACTIVE") // or enum
+  status      String   @default("ACTIVE") // ACTIVE, COMPLETED, ARCHIVED, CANCELLED
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  deletedAt   DateTime? // Nullable for soft delete
+  isDeleted   Boolean  @default(false) // Soft delete flag
 
   @@index([userId])
 }

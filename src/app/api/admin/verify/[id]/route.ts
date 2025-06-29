@@ -33,32 +33,51 @@ export async function POST(
         );
         }
     
+        const body = await request.json();
+        const { status } = body; // status should be 'APPROVED' or 'REJECTED'
+
         const userId = params.id; // Get user ID from the URL
 
-        // user already verified
+        // user already verified or rejected
         const existingUser = await prisma.user.findUnique({
             where: { id: userId },
-            select: { isVerified: true },
+            select: { verificationStatus: true },
         });
 
-        if (existingUser?.isVerified) {
+        if (existingUser?.verificationStatus === 'APPROVED') {
             return NextResponse.json(
                 { error: 'User is already verified' },
                 { status: 400 }
             );
         }
+        if (existingUser?.verificationStatus === 'REJECTED') {
+            return NextResponse.json(
+                { error: 'User verification already rejected' },
+                { status: 400 }
+            );
+        }
 
-        // Verify the user
+        // Update the user verification status
+        let newStatus: 'APPROVED' | 'REJECTED';
+        if (status === 'REJECTED') {
+            newStatus = 'REJECTED';
+        } else {
+            newStatus = 'APPROVED';
+        }
         const updatedUser = await prisma.user.update({
-        where: { id: userId },
-        data: { isVerified: true },
-        select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-            isVerified: true,
-        },
+            where: { id: userId },
+            data: {
+                isVerified: newStatus === 'APPROVED',
+                verificationStatus: newStatus,
+            },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                isVerified: true,
+                verificationStatus: true,
+            },
         });
 
         // Optionally, you can log the verification action

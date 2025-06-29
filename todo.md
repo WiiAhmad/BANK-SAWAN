@@ -1,6 +1,12 @@
 post api/user/savings
+create savings plan
+  title       String
+  goalAmount  Decimal
+  description String?
+  targetDate  DateTime
+
 get api/user/savings (return all user savings plan)
-get api/user/saving/{idSavings}
+
 patch api/user/saving/{idSavings}
 delete api/user/saving/{idSavings}
 
