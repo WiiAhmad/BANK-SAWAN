@@ -84,6 +84,7 @@ export async function POST(
         await prisma.log.create({
             data: {
                 action: 'VERIFY_USER',
+                entity: user.role,
                 userId: user.userId,
                 details: JSON.stringify({
                     verifiedUserId: updatedUser.id,

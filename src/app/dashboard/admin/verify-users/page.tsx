@@ -209,15 +209,15 @@ export default function VerifyUsers() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-200 via-purple-200 to-pink-200">
-      <Navbar user={user} onLogout={handleLogout} />
+      {/* <Navbar user={user} onLogout={handleLogout} /> */}
       <div className="p-3 sm:p-4 pt-20 md:pt-4">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6 sm:mb-8">
+          <div className="flex items-center justify-between pt-10 mb-6 sm:mb-8">
             <div className="flex items-center space-x-3 sm:space-x-4">
               <Button
                 onClick={() => router.push('/dashboard/admin')}
-                className="neo-brutal bg-white p-2 sm:p-3 hidden md:flex"
+                className="neo-brutal p-2 sm:p-3 md:flex"
               >
                 <ArrowLeft className="h-4 w-4 sm:h-6 sm:w-6" />
               </Button>

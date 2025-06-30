@@ -29,6 +29,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import Navbar from '@/components/dashboard/Navbar';
+import { useVerifyTopups, useVerifyUsers } from '@/hooks/useVerifyData';
+import { useAdminLogs, useAdminTransactions } from '@/hooks/SuperHooks';
 
 interface User {
   email: string;
@@ -64,6 +66,11 @@ export default function SuperAdminDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshSuccess, setRefreshSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  const { topups, loading: loadingTopups, error: errorTopups } = useVerifyTopups();
+  const { users: verifyUsers, loading: loadingUsers, error: errorUsers } = useVerifyUsers();
+  const { logs: adminLogs, loading: loadingLogs, error: errorLogs } = useAdminLogs();
+  const { transactions, loading: loadingTransactions, error: errorTransactions } = useAdminTransactions();
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -195,6 +202,8 @@ export default function SuperAdminDashboard() {
     localStorage.removeItem('token');
     localStorage.removeItem('verify_topups');
     localStorage.removeItem('verify_users');
+    localStorage.removeItem('admin_logs');
+    localStorage.removeItem('admin_transactions');
     router.push('/');
   };
 
@@ -275,22 +284,13 @@ export default function SuperAdminDashboard() {
     return date.toLocaleDateString();
   };
 
-  // Mock super admin statistics (focused on core metrics)
+  // Super admin statistics (with correct filters)
   const stats: SuperAdminStats = {
-    pendingTopups: 12,
-    pendingUsers: 8,
-    totalTransactions: 15420,
-    totalUsers: 2847
+    pendingTopups: loadingTopups || !topups ? 0 : topups.filter((t: any) => t.status === 'PENDING').length,
+    pendingUsers: loadingUsers || !verifyUsers ? 0 : verifyUsers.filter((u: any) => u.verificationStatus === 'PENDING').length,
+    totalUsers: loadingUsers || !verifyUsers ? 0 : verifyUsers.length,
+    totalTransactions: loadingTopups || !topups ? 0 : topups.length // now used for total topups (monthlyGrowth)
   };
-
-  // Mock recent activities for super admin
-  const recentActivities = [
-    { id: 1, type: 'system_backup', message: 'Database backup completed', time: '2 min ago' },
-    { id: 2, type: 'security_scan', message: 'Security scan completed', time: '15 min ago' },
-    { id: 3, type: 'admin_login', message: 'Admin user logged in', user: 'admin@example.com', time: '23 min ago' },
-    { id: 4, type: 'large_transaction', message: 'Large transaction flagged', amount: 10000, time: '35 min ago' },
-    { id: 5, type: 'api_error', message: 'Payment gateway timeout', time: '42 min ago' },
-  ];
 
   // Skeleton Components
   const StatsSkeleton = () => (
@@ -356,41 +356,42 @@ export default function SuperAdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-200 via-purple-200 to-blue-200">
-      <Navbar user={user} onLogout={handleLogout} />
-      
-      <div className="p-3 sm:p-4 pt-20 md:pt-4">
-        <div className="max-w-7xl mx-auto">
+      {/* <Navbar user={user} onLogout={handleLogout} /> */}
+      <div className="p-3 sm:p-4 pt-10 md:pt-4">
+        <div className="max-w-7xl mx-auto w-full">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 space-y-3 sm:space-y-0">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-3 sm:gap-0">
             <div className="flex items-center space-x-3">
               <div className="neo-brutal bg-red-500 text-white p-2 sm:p-3">
                 <Crown className="h-6 w-6 sm:h-8 sm:w-8" />
               </div>
               <div>
-                <h1 className="text-3xl sm:text-4xl lg:text-6xl font-black uppercase">Super Admin</h1>
-                <p className="font-semibold text-gray-700 text-sm sm:text-base">Full system access and monitoring</p>
+                <h1 className="text-2xl sm:text-4xl lg:text-6xl font-black uppercase leading-tight">Super Admin</h1>
+                <p className="font-semibold text-gray-700 text-xs sm:text-base">Full system access and monitoring</p>
               </div>
             </div>
-            <Button
-              onClick={handleLogout}
-              disabled={isRefreshing}
-              className="neo-brutal bg-red-500 text-white font-bold py-2 px-4 text-xs sm:text-sm"
-            >
-              Logout
-            </Button>
-            <Button
-              onClick={refreshDashboard}
-              disabled={isRefreshing}
-              className="neo-brutal bg-blue-500 text-white font-bold py-2 px-4 text-xs sm:text-sm"
-            >
-              <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-              {isRefreshing ? 'Refreshing...' : 'Refresh'}
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Button
+                onClick={handleLogout}
+                disabled={isRefreshing}
+                className="neo-brutal bg-red-500 text-white font-bold py-2 px-4 text-xs sm:text-sm w-full sm:w-auto"
+              >
+                Logout
+              </Button>
+              <Button
+                onClick={refreshDashboard}
+                disabled={isRefreshing}
+                className="neo-brutal bg-blue-500 text-white font-bold py-2 px-4 text-xs sm:text-sm w-full sm:w-auto"
+              >
+                <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'Refreshing...' : 'Refresh'}
+              </Button>
+            </div>
           </div>
 
           {/* Success Message */}
           {refreshSuccess && (
-            <Card className="neo-brutal-card neo-brutal-green mb-6">
+            <Card className="neo-brutal-card neo-brutal-green mb-4 sm:mb-6">
               <div className="flex items-center space-x-3">
                 <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
                 <p className="font-black uppercase text-sm sm:text-base">Super admin dashboard refreshed successfully!</p>
@@ -399,18 +400,18 @@ export default function SuperAdminDashboard() {
           )}
 
           {/* Role Notice */}
-          <Card className="neo-brutal-card bg-gradient-to-br from-red-500 to-purple-600 text-white mb-6 sm:mb-8">
+          <Card className="neo-brutal-card bg-gradient-to-br from-red-500 to-purple-600 text-white mb-4 sm:mb-8">
             <div className="flex items-center space-x-3">
               <Crown className="h-5 w-5 sm:h-6 sm:w-6" />
               <div>
-                <h3 className="font-black uppercase text-sm sm:text-base">Super Admin Access</h3>
+                <h3 className="font-black uppercase text-xs sm:text-base">Super Admin Access</h3>
                 <p className="font-semibold text-xs sm:text-sm">Full system access including transactions monitoring and system logs</p>
               </div>
             </div>
           </Card>
 
           {/* Stats Overview */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-4 sm:mb-8">
             {isLoading || isRefreshing ? (
               <>
                 {[...Array(4)].map((_, i) => (
@@ -419,7 +420,7 @@ export default function SuperAdminDashboard() {
               </>
             ) : (
               <>
-                <Card className="neo-brutal-card bg-gradient-to-br from-red-500 to-pink-600 text-white">
+                <Card className="neo-brutal-card bg-gradient-to-br from-red-500 to-pink-600 text-white w-full">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-bold uppercase text-xs sm:text-sm mb-1">Pending Top-ups</p>
@@ -428,8 +429,7 @@ export default function SuperAdminDashboard() {
                     <Clock className="h-6 w-6 sm:h-8 sm:w-8" />
                   </div>
                 </Card>
-
-                <Card className="neo-brutal-card bg-gradient-to-br from-orange-500 to-red-600 text-white">
+                <Card className="neo-brutal-card bg-gradient-to-br from-orange-500 to-red-600 text-white w-full">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-bold uppercase text-xs sm:text-sm mb-1">Pending Users</p>
@@ -438,8 +438,7 @@ export default function SuperAdminDashboard() {
                     <Users className="h-6 w-6 sm:h-8 sm:w-8" />
                   </div>
                 </Card>
-
-                <Card className="neo-brutal-card neo-brutal-green">
+                <Card className="neo-brutal-card neo-brutal-green w-full">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-bold uppercase text-xs sm:text-sm mb-1">Total Users</p>
@@ -448,8 +447,7 @@ export default function SuperAdminDashboard() {
                     <Users className="h-6 w-6 sm:h-8 sm:w-8" />
                   </div>
                 </Card>
-
-                <Card className="neo-brutal-card neo-brutal-purple">
+                <Card className="neo-brutal-card neo-brutal-purple w-full">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-bold uppercase text-xs sm:text-sm mb-1">Transactions</p>
@@ -463,97 +461,90 @@ export default function SuperAdminDashboard() {
           </div>
 
           {/* Super Admin Actions */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-4 sm:mb-8">
             <Link href="/dashboard/superadmin/transactions">
-              <Card className="neo-brutal-card hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer">
+              <Card className="neo-brutal-card hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer w-full">
                 <div className="flex items-center space-x-3 sm:space-x-4">
                   <div className="neo-brutal bg-blue-500 text-white p-2 sm:p-3">
                     <Eye className="h-5 w-5 sm:h-6 sm:w-6" />
                   </div>
                   <div>
-                    <h3 className="font-black uppercase text-sm sm:text-base">All Transactions</h3>
-                    <p className="font-semibold text-xs sm:text-sm text-gray-600">Monitor all system transactions</p>
+                    <h3 className="font-black uppercase text-xs sm:text-base">Transactions</h3>
+                    <p className="font-semibold text-xs sm:text-sm text-gray-600">View all transactions</p>
                   </div>
                 </div>
               </Card>
             </Link>
-
-            <Card className="neo-brutal-card bg-gradient-to-br from-green-500 to-blue-600 text-white">
-              <div className="flex items-center space-x-3 sm:space-x-4">
-                <div className="neo-brutal bg-white bg-opacity-20 text-white p-2 sm:p-3">
-                  <Activity className="h-5 w-5 sm:h-6 sm:w-6" />
+            <Link href="/dashboard/superadmin/systemlog">
+              <Card className="neo-brutal-card bg-gradient-to-br from-green-500 to-blue-600 text-white hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer w-full">
+                <div className="flex items-center space-x-3 sm:space-x-4">
+                  <div className="neo-brutal bg-white/20 text-white p-2 sm:p-3">
+                    <Activity className="h-5 w-5 sm:h-6 sm:w-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-black uppercase text-xs sm:text-base">System Logs</h3>
+                    <p className="font-semibold text-xs sm:text-sm text-gray-100">View all system log entries</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-black uppercase text-sm sm:text-base">System Logs</h3>
-                  <p className="font-semibold text-xs sm:text-sm">{filteredLogs.length} recent entries</p>
-                </div>
-              </div>
-            </Card>
-
+              </Card>
+            </Link>
             <Link href="/dashboard/admin/verify-topup">
-              <Card className="neo-brutal-card hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer">
+              <Card className="neo-brutal-card hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer w-full">
                 <div className="flex items-center space-x-3 sm:space-x-4">
                   <div className="neo-brutal bg-red-500 text-white p-2 sm:p-3">
                     <CreditCard className="h-5 w-5 sm:h-6 sm:w-6" />
                   </div>
                   <div>
-                    <h3 className="font-black uppercase text-sm sm:text-base">Verify Top-ups</h3>
-                    <p className="font-semibold text-xs sm:text-sm text-gray-600">{stats.pendingTopups} pending</p>
+                    <h3 className="font-black uppercase text-xs sm:text-base">Verify Top-ups</h3>
+                    <p className="font-semibold text-xs sm:text-sm text-gray-600">{loadingTopups ? 'Loading...' : `${stats.pendingTopups} pending`}</p>
                   </div>
                 </div>
               </Card>
             </Link>
-
             <Link href="/dashboard/admin/verify-users">
-              <Card className="neo-brutal-card hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer">
+              <Card className="neo-brutal-card hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer w-full">
                 <div className="flex items-center space-x-3 sm:space-x-4">
                   <div className="neo-brutal bg-orange-500 text-white p-2 sm:p-3">
                     <Users className="h-5 w-5 sm:h-6 sm:w-6" />
                   </div>
                   <div>
-                    <h3 className="font-black uppercase text-sm sm:text-base">Verify Users</h3>
-                    <p className="font-semibold text-xs sm:text-sm text-gray-600">{stats.pendingUsers} pending</p>
+                    <h3 className="font-black uppercase text-xs sm:text-base">Verify Users</h3>
+                    <p className="font-semibold text-xs sm:text-sm text-gray-600">{loadingUsers ? 'Loading...' : `${stats.pendingUsers} pending`}</p>
                   </div>
                 </div>
               </Card>
             </Link>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-6 sm:gap-8 mb-6 sm:mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 mb-6 sm:mb-8">
             {/* System Logs */}
-            <div className="lg:col-span-2">
-              <Card className="neo-brutal-card">
-                <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <div className="lg:col-span-2 w-full">
+              <Card className="neo-brutal-card w-full">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-2">
                   <div className="flex items-center space-x-3">
                     <div className="neo-brutal bg-purple-500 text-white p-2">
                       <FileText className="h-5 w-5" />
                     </div>
-                    <h2 className="text-xl sm:text-2xl font-black uppercase">System Logs</h2>
+                    <h2 className="text-lg sm:text-2xl font-black uppercase">System Logs</h2>
                   </div>
-                  <Button 
-                    onClick={refreshDashboard}
-                    disabled={isRefreshing}
-                    className="neo-brutal bg-white font-bold text-xs sm:text-sm py-2 px-3"
-                  >
-                    <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                    Refresh
-                  </Button>
+                  <Link href="/dashboard/superadmin/systemlog">
+                    <Button className="neo-brutal font-bold text-xs sm:text-sm py-2 px-3 w-full sm:w-auto">View All</Button>
+                  </Link>
                 </div>
-
                 {/* Log Filters */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
-                  <div className="relative">
+                  <div className="relative w-full">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                     <Input
                       value={logSearch}
                       onChange={(e) => setLogSearch(e.target.value)}
-                      className="neo-brutal h-10 sm:h-12 font-semibold pl-10 text-sm"
+                      className="neo-brutal h-10 sm:h-12 font-semibold pl-10 text-sm w-full"
                       placeholder="Search logs..."
-                      disabled={isLoading}
+                      disabled={loadingLogs}
                     />
                   </div>
-                  <Select value={logFilter} onValueChange={setLogFilter} disabled={isLoading}>
-                    <SelectTrigger className="neo-brutal h-10 sm:h-12 font-semibold">
+                  <Select value={logFilter} onValueChange={setLogFilter} disabled={loadingLogs}>
+                    <SelectTrigger className="neo-brutal h-10 sm:h-12 font-semibold w-full">
                       <SelectValue placeholder="Filter by level" />
                     </SelectTrigger>
                     <SelectContent>
@@ -568,15 +559,25 @@ export default function SuperAdminDashboard() {
 
                 {/* Log Entries */}
                 <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {isLoading || isRefreshing ? (
+                  {loadingLogs ? (
                     <>
                       {[...Array(5)].map((_, i) => (
                         <LogSkeleton key={i} />
                       ))}
                     </>
+                  ) : errorLogs ? (
+                    <div className="text-center py-8 text-red-500 font-bold">Failed to load logs</div>
                   ) : (
                     <>
-                      {filteredLogs.map((log) => {
+                      {adminLogs.filter((log: any) => {
+                        // Filter by level and search
+                        const levelMatch = logFilter === 'ALL' || log.level === logFilter;
+                        const searchMatch = !logSearch ||
+                          (log.action && log.action.toLowerCase().includes(logSearch.toLowerCase())) ||
+                          (log.details && log.details.toLowerCase().includes(logSearch.toLowerCase())) ||
+                          (log.user && log.user.name && log.user.name.toLowerCase().includes(logSearch.toLowerCase()));
+                        return levelMatch && searchMatch;
+                      }).map((log: any) => {
                         const LogIcon = getLogIcon(log.level);
                         return (
                           <div key={log.id} className="p-4 border-2 border-gray-200 hover:bg-gray-50 transition-colors rounded">
@@ -587,37 +588,28 @@ export default function SuperAdminDashboard() {
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between mb-2">
                                   <div className="flex items-center space-x-2">
-                                    <Badge className={`${getCategoryColor(log.category)} text-white text-xs font-bold`}>
-                                      {log.category}
-                                    </Badge>
-                                    <Badge variant="outline" className="text-xs font-bold">
-                                      {log.level}
-                                    </Badge>
+                                    <Badge className="bg-purple-500 text-white text-xs font-bold">{log.entity || 'LOG'}</Badge>
+                                    <Badge variant="outline" className="text-xs font-bold">{log.level}</Badge>
                                   </div>
                                   <span className="text-xs font-semibold text-gray-500">
                                     {formatTimestamp(log.timestamp)}
                                   </span>
                                 </div>
-                                <p className="font-bold text-sm mb-1">{log.message}</p>
-                                {log.details && (
-                                  <p className="font-semibold text-xs text-gray-600 mb-1">{log.details}</p>
-                                )}
-                                {log.userName && (
-                                  <p className="font-semibold text-xs text-blue-600">User: {log.userName}</p>
+                                <p className="font-bold text-sm mb-1">{log.action}</p>
+                                {log.details && <p className="font-semibold text-xs text-gray-600 mb-1">{log.details}</p>}
+                                {log.user && log.user.name && (
+                                  <p className="font-semibold text-xs text-blue-600">User: {log.user.name}</p>
                                 )}
                               </div>
                             </div>
                           </div>
                         );
                       })}
-
-                      {filteredLogs.length === 0 && (
+                      {adminLogs.length === 0 && (
                         <div className="text-center py-8">
                           <FileText className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                           <h3 className="text-lg font-black uppercase mb-2">No Logs Found</h3>
-                          <p className="font-semibold text-gray-600 text-sm">
-                            No logs match your current filters.
-                          </p>
+                          <p className="font-semibold text-gray-600 text-sm">No logs available.</p>
                         </div>
                       )}
                     </>
@@ -626,66 +618,43 @@ export default function SuperAdminDashboard() {
               </Card>
             </div>
 
-            {/* System Activities */}
-            <div>
-              <Card className="neo-brutal-card">
+            {/* System Activities (Transaction) section */}
+            <div className="w-full">
+              <Card className="neo-brutal-card w-full">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <h2 className="text-xl sm:text-2xl font-black uppercase">System Activities</h2>
-                  <Button className="neo-brutal bg-white font-bold text-xs sm:text-sm py-2 px-3">View All</Button>
+                  <h2 className="text-lg sm:text-2xl font-black uppercase">Transaction</h2>
                 </div>
                 <div className="space-y-3 sm:space-y-4">
-                  {isLoading || isRefreshing ? (
+                  {loadingTransactions ? (
                     <>
                       {[...Array(5)].map((_, i) => (
                         <ActivitySkeleton key={i} />
                       ))}
                     </>
+                  ) : errorTransactions ? (
+                    <div className="text-center py-8 text-red-500 font-bold">Failed to load transactions</div>
                   ) : (
-                    recentActivities.map((activity) => (
-                      <div key={activity.id} className="p-4 border-2 border-gray-200 rounded">
+                    transactions.slice(0, 5).map((tx: any) => (
+                      <div key={tx.id} className="p-4 border-2 border-gray-200 rounded">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3 sm:space-x-4">
-                            <div className={`p-2 border-2 border-black ${
-                              activity.type === 'system_backup' ? 'bg-green-400' :
-                              activity.type === 'security_scan' ? 'bg-blue-400' :
-                              activity.type === 'admin_login' ? 'bg-purple-400' :
-                              activity.type === 'large_transaction' ? 'bg-orange-400' :
-                              'bg-red-400'
-                            }`}>
-                              {activity.type === 'system_backup' ? (
-                                <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
-                              ) : activity.type === 'security_scan' ? (
-                                <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
-                              ) : activity.type === 'admin_login' ? (
-                                <Users className="h-3 w-3 sm:h-4 sm:w-4" />
-                              ) : activity.type === 'large_transaction' ? (
-                                <CreditCard className="h-3 w-3 sm:h-4 sm:w-4" />
-                              ) : (
-                                <XCircle className="h-3 w-3 sm:h-4 sm:w-4" />
-                              )}
+                          <div className="flex items-center sm:space-x-4">
+                            <div className="p-2 border-2 border-black bg-orange-400">
+                              <CreditCard className="h-3 w-3 sm:h-4 sm:w-4" />
                             </div>
                             <div>
-                              <p className="font-bold text-sm">{activity.message}</p>
-                              {activity.user && (
-                                <p className="font-semibold text-xs text-gray-600">{activity.user}</p>
-                              )}
-                              <p className="font-semibold text-xs text-gray-600">{activity.time}</p>
+                              <p className="font-bold text-sm truncate max-w-xs" title={tx.description || 'Transaction'}>
+                                {(tx.description && tx.description.length > 30)
+                                  ? `${tx.description.slice(0, 17)}...`
+                                  : (tx.description || 'Transaction')}
+                              </p>
+                              <p className="font-semibold text-xs text-gray-600">{tx.sender?.name || 'Unknown'} → {tx.receiver?.name || 'Unknown'}</p>
+                              <p className="font-semibold text-xs text-gray-600">{formatTimestamp(tx.createdAt)}</p>
                             </div>
                           </div>
                           <div className="text-right">
-                            {activity.amount && (
-                              <p className="font-black text-sm sm:text-lg text-orange-600">
-                                ${activity.amount.toLocaleString()}
-                              </p>
-                            )}
-                            <Badge variant={
-                              activity.type === 'system_backup' || activity.type === 'security_scan' ? 'default' :
-                              activity.type === 'large_transaction' ? 'destructive' :
-                              'secondary'
-                            } className="text-xs">
-                              {activity.type === 'system_backup' || activity.type === 'security_scan' ? 'Completed' :
-                               activity.type === 'large_transaction' ? 'Flagged' :
-                               activity.type === 'admin_login' ? 'Active' : 'Error'}
+                            <p className="font-black text-sm sm:text-lg text-orange-600">{tx.currency} {Number(tx.amount).toLocaleString()}</p>
+                            <Badge variant={tx.status === 'COMPLETED' ? 'default' : 'secondary'} className="text-xs">
+                              {tx.status}
                             </Badge>
                           </div>
                         </div>

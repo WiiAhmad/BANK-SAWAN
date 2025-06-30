@@ -119,69 +119,6 @@ export default function AllTransactions() {
           fee: 0,
           reference: 'TXN-2024-002'
         },
-        {
-          id: 'tx_003',
-          userId: 'user3',
-          userName: 'Mike Wilson',
-          userEmail: 'mike@example.com',
-          type: 'PAYMENT',
-          status: 'COMPLETED',
-          amount: 89.99,
-          currency: 'USD',
-          fromWallet: 'Main Wallet',
-          description: 'Coffee Shop Payment',
-          createdAt: '2024-03-14T16:45:00Z',
-          completedAt: '2024-03-14T16:45:05Z',
-          fee: 0.89,
-          reference: 'TXN-2024-003'
-        },
-        {
-          id: 'tx_004',
-          userId: 'user4',
-          userName: 'Emma Davis',
-          userEmail: 'emma@example.com',
-          type: 'WITHDRAWAL',
-          status: 'PENDING',
-          amount: 750,
-          currency: 'USD',
-          fromWallet: 'Investment Wallet',
-          description: 'ATM withdrawal request',
-          createdAt: '2024-03-14T14:20:00Z',
-          fee: 5.00,
-          reference: 'TXN-2024-004'
-        },
-        {
-          id: 'tx_005',
-          userId: 'user5',
-          userName: 'Alex Brown',
-          userEmail: 'alex@example.com',
-          type: 'TRANSFER',
-          status: 'FAILED',
-          amount: 300,
-          currency: 'USD',
-          fromWallet: 'Main Wallet',
-          toWallet: 'Emergency Fund',
-          description: 'Emergency fund transfer',
-          createdAt: '2024-03-13T11:30:00Z',
-          fee: 1.50,
-          reference: 'TXN-2024-005'
-        },
-        {
-          id: 'tx_006',
-          userId: 'user1',
-          userName: 'John Doe',
-          userEmail: 'john@example.com',
-          type: 'TOPUP',
-          status: 'COMPLETED',
-          amount: 250,
-          currency: 'USD',
-          toWallet: 'Main Wallet',
-          description: 'Credit card top-up',
-          createdAt: '2024-03-12T08:45:00Z',
-          completedAt: '2024-03-12T08:46:12Z',
-          fee: 0,
-          reference: 'TXN-2024-006'
-        }
       ]);
       setIsLoading(false);
     }, 1000);
@@ -389,9 +326,9 @@ export default function AllTransactions() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-200 via-blue-200 to-green-200">
-      <Navbar user={user} onLogout={handleLogout} />
+      {/* <Navbar user={user} onLogout={handleLogout} /> */}
       
-      <div className="p-3 sm:p-4 pt-20 md:pt-4">
+      <div className="p-3 sm:p-4 pt-10 md:pt-4">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">

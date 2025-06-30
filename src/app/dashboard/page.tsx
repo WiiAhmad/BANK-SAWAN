@@ -29,6 +29,11 @@ export default function Dashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('admin_logs');
+    localStorage.removeItem('admin_transactions');
+    localStorage.removeItem('verify_topups');
+    localStorage.removeItem('verify_users');
     router.push('/');
   };
 

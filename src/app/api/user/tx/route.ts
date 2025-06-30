@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
             );
         }
         const user = decryptToken(userToken);
-        if (!user || user.role !== 'user') {
+        if (!user || user.role !== 'USER') {
             return NextResponse.json({ error: 'Forbidden: Users only' }, { status: 403 });
         }
 

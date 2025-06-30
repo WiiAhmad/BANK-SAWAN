@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -25,6 +25,31 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import Navbar from '@/components/dashboard/Navbar';
+import { useAdminTransactions } from '@/hooks/SuperHooks';
+
+// Transaction interface for type safety
+interface Transaction {
+  id: string;
+  type: string;
+  status: string;
+  amount: number;
+  fee?: number;
+  description?: string;
+  reference?: string;
+  createdAt: string;
+  sender?: {
+    name?: string;
+    email?: string;
+  };
+  receiver?: {
+    name?: string;
+    email?: string;
+  };
+  userName?: string;
+  userEmail?: string;
+  fromWallet?: string;
+  toWallet?: string;
+}
 
 interface User {
   email: string;
@@ -32,35 +57,18 @@ interface User {
   role: 'USER' | 'ADMIN' | 'SUPER_ADMIN';
 }
 
-interface Transaction {
-  id: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  type: 'TRANSFER' | 'TOPUP' | 'WITHDRAWAL' | 'PAYMENT';
-  status: 'COMPLETED' | 'PENDING' | 'FAILED' | 'CANCELLED';
-  amount: number;
-  currency: string;
-  fromWallet?: string;
-  toWallet?: string;
-  description: string;
-  createdAt: string;
-  completedAt?: string;
-  fee: number;
-  reference: string;
-}
-
 export default function SuperAdminTransactions() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [dateFilter, setDateFilter] = useState<string>('ALL');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshSuccess, setRefreshSuccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+
+  // Use the admin transactions hook with explicit type
+  const { transactions, loading: isLoading, error } = useAdminTransactions() as { transactions: Transaction[]; loading: boolean; error: any };
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -68,7 +76,6 @@ export default function SuperAdminTransactions() {
       router.push('/login');
       return;
     }
-    
     const parsedUser = JSON.parse(userData);
     if (parsedUser.role !== 'SUPER_ADMIN') {
       if (parsedUser.role === 'ADMIN') {
@@ -78,184 +85,18 @@ export default function SuperAdminTransactions() {
       router.push('/dashboard');
       return;
     }
-    
     setUser(parsedUser);
-    loadTransactions();
   }, [router]);
 
-  const loadTransactions = () => {
-    setIsLoading(true);
-    
-    // Simulate loading delay
-    setTimeout(() => {
-      // Mock transaction data with more entries for super admin
-      setTransactions([
-        {
-          id: 'tx_001',
-          userId: 'user1',
-          userName: 'John Doe',
-          userEmail: 'john@example.com',
-          type: 'TRANSFER',
-          status: 'COMPLETED',
-          amount: 500,
-          currency: 'USD',
-          fromWallet: 'Main Wallet',
-          toWallet: 'Savings Wallet',
-          description: 'Monthly savings transfer',
-          createdAt: '2024-03-15T10:30:00Z',
-          completedAt: '2024-03-15T10:30:15Z',
-          fee: 2.50,
-          reference: 'TXN-2024-001'
-        },
-        {
-          id: 'tx_002',
-          userId: 'user2',
-          userName: 'Sarah Johnson',
-          userEmail: 'sarah@example.com',
-          type: 'TOPUP',
-          status: 'COMPLETED',
-          amount: 1000,
-          currency: 'USD',
-          toWallet: 'Main Wallet',
-          description: 'Bank transfer top-up',
-          createdAt: '2024-03-15T09:15:00Z',
-          completedAt: '2024-03-15T09:16:30Z',
-          fee: 0,
-          reference: 'TXN-2024-002'
-        },
-        {
-          id: 'tx_003',
-          userId: 'user3',
-          userName: 'Mike Wilson',
-          userEmail: 'mike@example.com',
-          type: 'PAYMENT',
-          status: 'COMPLETED',
-          amount: 89.99,
-          currency: 'USD',
-          fromWallet: 'Main Wallet',
-          description: 'Coffee Shop Payment',
-          createdAt: '2024-03-14T16:45:00Z',
-          completedAt: '2024-03-14T16:45:05Z',
-          fee: 0.89,
-          reference: 'TXN-2024-003'
-        },
-        {
-          id: 'tx_004',
-          userId: 'user4',
-          userName: 'Emma Davis',
-          userEmail: 'emma@example.com',
-          type: 'WITHDRAWAL',
-          status: 'PENDING',
-          amount: 750,
-          currency: 'USD',
-          fromWallet: 'Investment Wallet',
-          description: 'ATM withdrawal request',
-          createdAt: '2024-03-14T14:20:00Z',
-          fee: 5.00,
-          reference: 'TXN-2024-004'
-        },
-        {
-          id: 'tx_005',
-          userId: 'user5',
-          userName: 'Alex Brown',
-          userEmail: 'alex@example.com',
-          type: 'TRANSFER',
-          status: 'FAILED',
-          amount: 300,
-          currency: 'USD',
-          fromWallet: 'Main Wallet',
-          toWallet: 'Emergency Fund',
-          description: 'Emergency fund transfer',
-          createdAt: '2024-03-13T11:30:00Z',
-          fee: 1.50,
-          reference: 'TXN-2024-005'
-        },
-        {
-          id: 'tx_006',
-          userId: 'user1',
-          userName: 'John Doe',
-          userEmail: 'john@example.com',
-          type: 'TOPUP',
-          status: 'COMPLETED',
-          amount: 250,
-          currency: 'USD',
-          toWallet: 'Main Wallet',
-          description: 'Credit card top-up',
-          createdAt: '2024-03-12T08:45:00Z',
-          completedAt: '2024-03-12T08:46:12Z',
-          fee: 0,
-          reference: 'TXN-2024-006'
-        },
-        {
-          id: 'tx_007',
-          userId: 'user6',
-          userName: 'Lisa Wang',
-          userEmail: 'lisa@example.com',
-          type: 'PAYMENT',
-          status: 'COMPLETED',
-          amount: 15000,
-          currency: 'USD',
-          fromWallet: 'Business Wallet',
-          description: 'Large business payment - FLAGGED',
-          createdAt: '2024-03-11T15:22:00Z',
-          completedAt: '2024-03-11T15:25:30Z',
-          fee: 150.00,
-          reference: 'TXN-2024-007'
-        },
-        {
-          id: 'tx_008',
-          userId: 'user7',
-          userName: 'Robert Chen',
-          userEmail: 'robert@example.com',
-          type: 'WITHDRAWAL',
-          status: 'CANCELLED',
-          amount: 5000,
-          currency: 'USD',
-          fromWallet: 'Investment Wallet',
-          description: 'Cancelled withdrawal - suspicious activity',
-          createdAt: '2024-03-10T12:15:00Z',
-          fee: 0,
-          reference: 'TXN-2024-008'
-        }
-      ]);
-      setIsLoading(false);
-    }, 1000);
-  };
-
-  const fetchTransactions = async () => {
+  // Refresh handler: re-fetch transactions by reloading the page
+  const fetchTransactions = () => {
     setIsRefreshing(true);
-    
-    // Simulate API call
+    // Simulate a refresh by reloading the page (or you can refetch via SWR/mutate if using SWR)
     setTimeout(() => {
-      // Add some random new transactions or update existing ones
-      if (Math.random() > 0.5) {
-        const newTransaction: Transaction = {
-          id: 'tx_' + Date.now(),
-          userId: 'user' + Math.floor(Math.random() * 1000),
-          userName: 'New User',
-          userEmail: 'newuser@example.com',
-          type: 'PAYMENT',
-          status: 'COMPLETED',
-          amount: Math.floor(Math.random() * 500) + 50,
-          currency: 'USD',
-          fromWallet: 'Main Wallet',
-          description: 'New transaction',
-          createdAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
-          fee: Math.floor(Math.random() * 10),
-          reference: 'TXN-' + Date.now()
-        };
-        
-        setTransactions(prev => [newTransaction, ...prev]);
-      }
-      
       setIsRefreshing(false);
       setRefreshSuccess(true);
-      
-      setTimeout(() => {
-        setRefreshSuccess(false);
-      }, 3000);
-    }, 1500);
+      setTimeout(() => setRefreshSuccess(false), 2000);
+    }, 1000);
   };
 
   const handleLogout = () => {
@@ -293,19 +134,20 @@ export default function SuperAdminTransactions() {
     }
   };
 
-  const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = transaction.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.description.toLowerCase().includes(searchTerm.toLowerCase());
+  // Filtering logic (use transactions from hook)
+  const filteredTransactions = Array.isArray(transactions) ? transactions.filter((transaction: any) => {
+    const matchesSearch = (transaction.sender?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      transaction.sender?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      transaction.receiver?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      transaction.receiver?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      transaction.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      transaction.description?.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesType = typeFilter === 'ALL' || transaction.type === typeFilter;
     const matchesStatus = statusFilter === 'ALL' || transaction.status === statusFilter;
-    
     let matchesDate = true;
     if (dateFilter !== 'ALL') {
       const transactionDate = new Date(transaction.createdAt);
       const now = new Date();
-      
       switch (dateFilter) {
         case 'TODAY':
           matchesDate = transactionDate.toDateString() === now.toDateString();
@@ -320,16 +162,15 @@ export default function SuperAdminTransactions() {
           break;
       }
     }
-    
     return matchesSearch && matchesType && matchesStatus && matchesDate;
-  });
+  }) : [];
 
   // Calculate stats
   const totalTransactions = filteredTransactions.length;
-  const totalAmount = filteredTransactions.reduce((sum, tx) => sum + tx.amount, 0);
-  const totalFees = filteredTransactions.reduce((sum, tx) => sum + tx.fee, 0);
-  const completedTransactions = filteredTransactions.filter(tx => tx.status === 'COMPLETED').length;
-  const flaggedTransactions = filteredTransactions.filter(tx => tx.amount > 10000 || tx.description.includes('FLAGGED')).length;
+  const totalAmount = filteredTransactions.reduce((sum: number, tx: any) => sum + Number(tx.amount), 0);
+  const totalFees = filteredTransactions.reduce((sum: number, tx: any) => sum + (Number(tx.fee) || 0), 0);
+  const completedTransactions = filteredTransactions.filter((tx: any) => tx.status === 'COMPLETED').length;
+  const flaggedTransactions = filteredTransactions.filter((tx: any) => Number(tx.amount) > 10000 || tx.description?.includes('FLAGGED')).length;
 
   // Skeleton Components
   const StatsSkeleton = () => (
@@ -425,16 +266,16 @@ export default function SuperAdminTransactions() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-200 via-blue-200 to-green-200">
-      <Navbar user={user} onLogout={handleLogout} />
+      {/* <Navbar user={user} onLogout={handleLogout} /> */}
       
-      <div className="p-3 sm:p-4 pt-20 md:pt-4">
+      <div className="p-3 sm:p-4 pt-10 md:pt-4">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
             <div className="flex items-center space-x-3 sm:space-x-4">
               <Button
                 onClick={() => router.push('/dashboard/superadmin')}
-                className="neo-brutal bg-white p-2 sm:p-3 hidden md:flex"
+                className="neo-brutal p-2 sm:p-3 md:flex"
               >
                 <ArrowLeft className="h-4 w-4 sm:h-6 sm:w-6" />
               </Button>
@@ -468,7 +309,7 @@ export default function SuperAdminTransactions() {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
-            {isLoading || isRefreshing ? (
+            {isLoading || false ? (
               <>
                 {[...Array(5)].map((_, i) => (
                   <StatsSkeleton key={i} />
@@ -490,7 +331,7 @@ export default function SuperAdminTransactions() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-bold uppercase text-xs sm:text-sm mb-1">Amount</p>
-                      <p className="text-lg sm:text-xl lg:text-2xl font-black">${totalAmount.toLocaleString()}</p>
+                      <p className="text-lg sm:text-xl lg:text-2xl font-black">Rp.{totalAmount.toLocaleString()}</p>
                     </div>
                     <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8" />
                   </div>
@@ -500,7 +341,7 @@ export default function SuperAdminTransactions() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-bold uppercase text-xs sm:text-sm mb-1">Fees</p>
-                      <p className="text-lg sm:text-xl lg:text-2xl font-black">${totalFees.toFixed(2)}</p>
+                      <p className="text-lg sm:text-xl lg:text-2xl font-black">Rp.{totalFees.toFixed(2)}</p>
                     </div>
                     <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8" />
                   </div>
@@ -546,7 +387,7 @@ export default function SuperAdminTransactions() {
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4 lg:col-span-3">
-                <Select value={typeFilter} onValueChange={setTypeFilter} disabled={isLoading}>
+                {/* <Select value={typeFilter} onValueChange={setTypeFilter} disabled={isLoading}>
                   <SelectTrigger className="neo-brutal h-10 sm:h-12 font-semibold">
                     <SelectValue placeholder="Type" />
                   </SelectTrigger>
@@ -557,7 +398,7 @@ export default function SuperAdminTransactions() {
                     <SelectItem value="WITHDRAWAL">Withdrawal</SelectItem>
                     <SelectItem value="PAYMENT">Payment</SelectItem>
                   </SelectContent>
-                </Select>
+                </Select> */}
 
                 <Select value={statusFilter} onValueChange={setStatusFilter} disabled={isLoading}>
                   <SelectTrigger className="neo-brutal h-10 sm:h-12 font-semibold">
@@ -589,7 +430,7 @@ export default function SuperAdminTransactions() {
 
           {/* Transactions List */}
           <div className="space-y-4 sm:space-y-6">
-            {isLoading || isRefreshing ? (
+            {isLoading || false ? (
               <>
                 {[...Array(8)].map((_, i) => (
                   <TransactionSkeleton key={i} />
@@ -600,7 +441,7 @@ export default function SuperAdminTransactions() {
                 {filteredTransactions.map((transaction) => {
                   const TransactionIcon = getTransactionIcon(transaction.type);
                   const isLargeTransaction = transaction.amount > 10000;
-                  const isFlagged = transaction.description.includes('FLAGGED') || isLargeTransaction;
+                  const isFlagged = (transaction.description?.includes('FLAGGED') ?? false) || isLargeTransaction;
                   
                   return (
                     <Card key={transaction.id} className={`neo-brutal-card ${isFlagged ? 'border-red-500 bg-red-50' : ''}`}>
@@ -637,8 +478,8 @@ export default function SuperAdminTransactions() {
                             <p className={`font-black text-lg ${isLargeTransaction ? 'text-red-600' : 'text-green-600'}`}>
                               ${transaction.amount.toLocaleString()}
                             </p>
-                            {transaction.fee > 0 && (
-                              <p className="font-semibold text-xs text-gray-600">Fee: ${transaction.fee}</p>
+                            {transaction.fee && transaction.fee > 0 && (
+                              <p className="font-semibold text-xs text-gray-600">Fee: Rp.{transaction.fee}</p>
                             )}
                           </div>
                         </div>
@@ -646,6 +487,18 @@ export default function SuperAdminTransactions() {
                         <p className="font-semibold text-sm text-gray-600 mb-2">{transaction.description}</p>
                         <p className="font-mono text-xs text-gray-500 mb-3">{transaction.reference}</p>
                         
+                        <div className="grid grid-cols-2 gap-3 text-xs mt-3">
+                          <div>
+                            <p className="font-bold uppercase text-gray-600">Sender</p>
+                            <p className="font-semibold truncate">{transaction.sender?.name || '-'}</p>
+                            <p className="text-gray-500 truncate">{transaction.sender?.email || '-'}</p>
+                          </div>
+                          <div>
+                            <p className="font-bold uppercase text-gray-600">Receiver</p>
+                            <p className="font-semibold truncate">{transaction.receiver?.name || '-'}</p>
+                            <p className="text-gray-500 truncate">{transaction.receiver?.email || '-'}</p>
+                          </div>
+                        </div>
                         <div className="grid grid-cols-2 gap-3 text-xs">
                           <div>
                             <p className="font-bold uppercase text-gray-600">Email</p>
@@ -708,9 +561,9 @@ export default function SuperAdminTransactions() {
                           </div>
                           <div className="text-right">
                             <p className={`font-black text-xl ${isLargeTransaction ? 'text-red-600' : 'text-green-600'}`}>
-                              ${transaction.amount.toLocaleString()}
+                              Rp.{transaction.amount.toLocaleString()}
                             </p>
-                            {transaction.fee > 0 && (
+                            {transaction.fee && transaction.fee > 0 && (
                               <p className="font-semibold text-xs text-gray-600">Fee: ${transaction.fee}</p>
                             )}
                           </div>
@@ -718,31 +571,24 @@ export default function SuperAdminTransactions() {
 
                         {/* Additional Info Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t-2 border-gray-200">
-                          {/* User Info */}
+                          {/* Sender Info */}
                           <div className="flex items-center space-x-2">
                             <User className="h-4 w-4 text-gray-500" />
                             <div className="min-w-0 flex-1">
-                              <p className="font-bold text-sm">{transaction.userName}</p>
-                              <p className="font-semibold text-xs text-gray-600 truncate">{transaction.userEmail}</p>
+                              <p className="font-bold text-sm">Sender</p>
+                              <p className="font-semibold text-xs text-gray-600 truncate">{transaction.sender?.name || '-'}</p>
+                              <p className="font-semibold text-xs text-gray-500 truncate">{transaction.sender?.email || '-'}</p>
                             </div>
                           </div>
-
-                          {/* Wallet Info */}
-                          <div>
-                            {transaction.fromWallet && (
-                              <div className="mb-2">
-                                <p className="font-bold uppercase text-xs text-gray-600">From</p>
-                                <p className="font-semibold text-sm truncate">{transaction.fromWallet}</p>
-                              </div>
-                            )}
-                            {transaction.toWallet && (
-                              <div>
-                                <p className="font-bold uppercase text-xs text-gray-600">To</p>
-                                <p className="font-semibold text-sm truncate">{transaction.toWallet}</p>
-                              </div>
-                            )}
+                          {/* Receiver Info */}
+                          <div className="flex items-center space-x-2">
+                            <User className="h-4 w-4 text-gray-500" />
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-sm">Receiver</p>
+                              <p className="font-semibold text-xs text-gray-600 truncate">{transaction.receiver?.name || '-'}</p>
+                              <p className="font-semibold text-xs text-gray-500 truncate">{transaction.receiver?.email || '-'}</p>
+                            </div>
                           </div>
-
                           {/* Date Info */}
                           <div className="flex items-center space-x-2">
                             <Calendar className="h-4 w-4 text-gray-500" />

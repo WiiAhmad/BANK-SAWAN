@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Shield, 
   Users, 
@@ -92,6 +93,56 @@ export default function AdminDashboard() {
     };
     fetchRecentActivities();
   }, []);
+  // Skeleton Components
+  const StatsSkeleton = () => (
+    <Card className="neo-brutal-card">
+      <div className="flex items-center justify-between">
+        <div>
+          <Skeleton className="w-20 h-3 mb-2" />
+          <Skeleton className="w-16 h-6" />
+        </div>
+        <Skeleton className="w-6 h-6 sm:w-8 sm:h-8" />
+      </div>
+    </Card>
+  );
+
+  const LogSkeleton = () => (
+    <div className="p-4 border-2 border-gray-200 rounded">
+      <div className="flex items-start space-x-3">
+        <Skeleton className="w-8 h-8 rounded-full" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Skeleton className="w-16 h-5" />
+              <Skeleton className="w-12 h-5" />
+            </div>
+            <Skeleton className="w-16 h-3" />
+          </div>
+          <Skeleton className="w-full h-4 mb-2" />
+          <Skeleton className="w-3/4 h-3 mb-1" />
+          <Skeleton className="w-1/2 h-3" />
+        </div>
+      </div>
+    </div>
+  );
+
+  const ActivitySkeleton = () => (
+    <div className="p-4 border-2 border-gray-200 rounded">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <Skeleton className="w-8 h-8" />
+          <div className="flex-1">
+            <Skeleton className="w-32 h-4 mb-1" />
+            <Skeleton className="w-16 h-3" />
+          </div>
+        </div>
+        <div className="text-right">
+          <Skeleton className="w-12 h-4 mb-1" />
+          <Skeleton className="w-16 h-5" />
+        </div>
+      </div>
+    </div>
+  );
 
   const handleLogout = async () => {
     try {
@@ -124,12 +175,25 @@ export default function AdminDashboard() {
     }, 3000);
   };
 
+  // Get verify_users from localStorage for stats
+  let localVerifyUsers: any[] = [];
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('verify_users');
+      if (stored) {
+        localVerifyUsers = JSON.parse(stored);
+      }
+    } catch (e) {
+      localVerifyUsers = [];
+    }
+  }
+
   // Admin statistics from fetched data
   const stats: AdminStats = {
     pendingTopups: topups?.filter((t: any) => t.status === 'PENDING').length || 0,
-    pendingUsers: verifyUsers?.length || 0,
-    totalUsers: 2847, // You can update this if you fetch total users
-    monthlyGrowth: 15.7
+    pendingUsers: localVerifyUsers.filter((u: any) => u.verificationStatus === 'PENDING').length,
+    totalUsers: localVerifyUsers.length,
+    monthlyGrowth: topups?.length || 0 // now used for total topups
   };
 
   if (!user) {
@@ -143,43 +207,49 @@ export default function AdminDashboard() {
     );
   }
 
+  // Helper: show skeletons for stats
+  const showStatsSkeleton = loadingTopups || loadingUsers;
+  // Helper: show skeletons for activities (while recentActivities is null or undefined)
+  const showActivitiesSkeleton = recentActivities.length === 0 && (loadingTopups || loadingUsers);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-200 via-orange-200 to-yellow-200">
-      <Navbar user={user} onLogout={handleLogout} />
-      
-      <div className="p-3 sm:p-4 pt-20 md:pt-4">
-        <div className="max-w-7xl mx-auto">
+      {/* <Navbar user={user} onLogout={handleLogout} /> */}
+      <div className="p-3 sm:p-4 pt-10 md:pt-4">
+        <div className="max-w-7xl mx-auto w-full">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 space-y-3 sm:space-y-0">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 mt-5 sm:mb-8 gap-3 sm:gap-0 w-full">
             <div className="flex items-center space-x-3">
               <div className="neo-brutal bg-orange-500 text-white p-2 sm:p-3">
                 <Shield className="h-6 w-6 sm:h-8 sm:w-8" />
               </div>
               <div>
-                <h1 className="text-3xl sm:text-4xl lg:text-6xl font-black uppercase">Admin Panel</h1>
-                <p className="font-semibold text-gray-700 text-sm sm:text-base">Manage user verifications and top-up approvals</p>
+                <h1 className="text-2xl sm:text-4xl lg:text-6xl font-black uppercase leading-tight">Admin Panel</h1>
+                <p className="font-semibold text-gray-700 text-xs sm:text-base">Manage user verifications and top-up approvals</p>
               </div>
             </div>
-            <Button
-              onClick={handleLogout}
-              disabled={isRefreshing}
-              className="neo-brutal from-red-500 text-white font-bold py-2 px-4 text-xs sm:text-sm"
-            >
-              Logout
-            </Button>
-            <Button
-              onClick={refreshDashboard}
-              disabled={isRefreshing}
-              className="neo-brutal bg-blue-500 text-white font-bold py-2 px-4 text-xs sm:text-sm"
-            >
-              <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-              {isRefreshing ? 'Refreshing...' : 'Refresh'}
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Button
+                onClick={handleLogout}
+                disabled={isRefreshing}
+                className="neo-brutal from-red-500 text-white font-bold py-2 px-4 text-xs sm:text-sm w-full sm:w-auto"
+              >
+                Logout
+              </Button>
+              <Button
+                onClick={refreshDashboard}
+                disabled={isRefreshing}
+                className="neo-brutal bg-blue-500 text-white font-bold py-2 px-4 text-xs sm:text-sm w-full sm:w-auto"
+              >
+                <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'Refreshing...' : 'Refresh'}
+              </Button>
+            </div>
           </div>
 
           {/* Success Message */}
           {refreshSuccess && (
-            <Card className="neo-brutal-card neo-brutal-green mb-6">
+            <Card className="neo-brutal-card neo-brutal-green mb-4 sm:mb-6">
               <div className="flex items-center space-x-3">
                 <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
                 <p className="font-black uppercase text-sm sm:text-base">Admin panel refreshed successfully!</p>
@@ -188,86 +258,93 @@ export default function AdminDashboard() {
           )}
 
           {/* Role Notice */}
-          <Card className="neo-brutal-card bg-gradient-to-br from-orange-500 to-red-600 text-white mb-6 sm:mb-8">
+          <Card className="neo-brutal-card bg-gradient-to-br from-orange-500 to-red-600 text-white mb-4 sm:mb-8">
             <div className="flex items-center space-x-3">
               <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6" />
               <div>
-                <h3 className="font-black uppercase text-sm sm:text-base">Admin Access Level</h3>
+                <h3 className="font-black uppercase text-xs sm:text-base">Admin Access Level</h3>
                 <p className="font-semibold text-xs sm:text-sm">You have access to user verification and top-up approval functions</p>
               </div>
             </div>
           </Card>
 
           {/* Stats Overview */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-            <Card className="neo-brutal-card bg-gradient-to-br from-red-500 to-pink-600 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-bold uppercase text-xs sm:text-sm mb-1">Pending Top-ups</p>
-                  <p className="text-xl sm:text-2xl font-black">{stats.pendingTopups}</p>
-                </div>
-                <Clock className="h-6 w-6 sm:h-8 sm:w-8" />
-              </div>
-            </Card>
-
-            <Card className="neo-brutal-card bg-gradient-to-br from-orange-500 to-red-600 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-bold uppercase text-xs sm:text-sm mb-1">Pending Users</p>
-                  <p className="text-xl sm:text-2xl font-black">{stats.pendingUsers}</p>
-                </div>
-                <Users className="h-6 w-6 sm:h-8 sm:w-8" />
-              </div>
-            </Card>
-
-            <Card className="neo-brutal-card neo-brutal-green">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-bold uppercase text-xs sm:text-sm mb-1">Total Users</p>
-                  <p className="text-xl sm:text-2xl font-black">{stats.totalUsers.toLocaleString()}</p>
-                </div>
-                <Users className="h-6 w-6 sm:h-8 sm:w-8" />
-              </div>
-            </Card>
-
-            <Card className="neo-brutal-card neo-brutal-orange">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-bold uppercase text-xs sm:text-sm mb-1">Growth</p>
-                  <p className="text-xl sm:text-2xl font-black">+{stats.monthlyGrowth}%</p>
-                </div>
-                <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8" />
-              </div>
-            </Card>
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-4 sm:mb-8">
+            {showStatsSkeleton ? (
+              <>
+                <StatsSkeleton />
+                <StatsSkeleton />
+                <StatsSkeleton />
+                <StatsSkeleton />
+              </>
+            ) : (
+              <>
+                <Card className="neo-brutal-card bg-gradient-to-br from-red-500 to-pink-600 text-white w-full">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-bold uppercase text-xs sm:text-sm mb-1">Pending Top-ups</p>
+                      <p className="text-xl sm:text-2xl font-black">{stats.pendingTopups}</p>
+                    </div>
+                    <Clock className="h-6 w-6 sm:h-8 sm:w-8" />
+                  </div>
+                </Card>
+                <Card className="neo-brutal-card bg-gradient-to-br from-orange-500 to-red-600 text-white w-full">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-bold uppercase text-xs sm:text-sm mb-1">Pending Users</p>
+                      <p className="text-xl sm:text-2xl font-black">{stats.pendingUsers}</p>
+                    </div>
+                    <Users className="h-6 w-6 sm:h-8 sm:w-8" />
+                  </div>
+                </Card>
+                <Card className="neo-brutal-card neo-brutal-green w-full">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-bold uppercase text-xs sm:text-sm mb-1">Total Users</p>
+                      <p className="text-xl sm:text-2xl font-black">{stats.totalUsers.toLocaleString()}</p>
+                    </div>
+                    <Users className="h-6 w-6 sm:h-8 sm:w-8" />
+                  </div>
+                </Card>
+                <Card className="neo-brutal-card neo-brutal-orange w-full">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-bold uppercase text-xs sm:text-sm mb-1">Total Topups</p>
+                      <p className="text-xl sm:text-2xl font-black">{stats.monthlyGrowth}</p>
+                    </div>
+                    <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8" />
+                  </div>
+                </Card>
+              </>
+            )}
           </div>
 
           {/* Admin Actions */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <div className="grid grid-cols-2 xs:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-8">
             <Link href="/dashboard/admin/verify-topup">
-              <Card className="neo-brutal-card hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer">
+              <Card className="neo-brutal-card hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer w-full">
                 <div className="flex items-center space-x-3 sm:space-x-4">
                   <div className="neo-brutal bg-red-500 text-white p-3 sm:p-4">
                     <CreditCard className="h-6 w-6 sm:h-8 sm:w-8" />
                   </div>
                   <div>
-                    <h3 className="font-black uppercase text-base sm:text-lg">Verify Top-ups</h3>
-                    <p className="font-semibold text-sm text-gray-600">{loadingTopups ? 'Loading...' : stats.pendingTopups + ' pending approvals'}</p>
+                    <h3 className="font-black uppercase text-xs sm:text-lg">Verify Top-ups</h3>
+                    <p className="font-semibold text-xs sm:text-sm text-gray-600">{loadingTopups ? 'Loading...' : stats.pendingTopups + ' pending approvals'}</p>
                     <p className="font-semibold text-xs text-gray-500">Review and approve user top-up requests</p>
                     {errorTopups && <div className="text-xs text-red-600">{errorTopups}</div>}
                   </div>
                 </div>
               </Card>
             </Link>
-
             <Link href="/dashboard/admin/verify-users">
-              <Card className="neo-brutal-card hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer">
+              <Card className="neo-brutal-card hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer w-full">
                 <div className="flex items-center space-x-3 sm:space-x-4">
                   <div className="neo-brutal bg-orange-500 text-white p-3 sm:p-4">
                     <Users className="h-6 w-6 sm:h-8 sm:w-8" />
                   </div>
                   <div>
-                    <h3 className="font-black uppercase text-base sm:text-lg">Verify Users</h3>
-                    <p className="font-semibold text-sm text-gray-600">{loadingUsers ? 'Loading...' : stats.pendingUsers + ' pending verifications'}</p>
+                    <h3 className="font-black uppercase text-xs sm:text-lg">Verify Users</h3>
+                    <p className="font-semibold text-xs sm:text-sm text-gray-600">{loadingUsers ? 'Loading...' : stats.pendingUsers + ' pending verifications'}</p>
                     <p className="font-semibold text-xs text-gray-500">Review and approve user registrations</p>
                     {errorUsers && <div className="text-xs text-red-600">{errorUsers}</div>}
                   </div>
@@ -277,13 +354,18 @@ export default function AdminDashboard() {
           </div>
 
           {/* Recent Activities */}
-          <Card className="neo-brutal-card">
+          <Card className="neo-brutal-card w-full">
             <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <h2 className="text-xl sm:text-2xl font-black uppercase">Recent Admin Activities</h2>
-              {/* <Button className="neo-brutal bg-white font-bold text-xs sm:text-sm py-2 px-3">View All</Button> */}
+              <h2 className="text-lg sm:text-2xl font-black uppercase">Recent Admin Activities</h2>
             </div>
             <div className="space-y-3 sm:space-y-4">
-              {recentActivities.length === 0 ? (
+              {showActivitiesSkeleton ? (
+                <>
+                  <ActivitySkeleton />
+                  <ActivitySkeleton />
+                  <ActivitySkeleton />
+                </>
+              ) : recentActivities.length === 0 ? (
                 <div className="text-center text-gray-500">No recent activities found.</div>
               ) : (
                 recentActivities.map((activity) => (
