@@ -19,14 +19,22 @@ import {
   Building
 } from 'lucide-react';
 import Navbar from '@/components/dashboard/Navbar';
+import { useAllWallets } from '@/hooks/UserData';
 
+// Wallet type based on API response
 interface Wallet {
   id: string;
+  userId: string;
+  walletNumber: string;
   name: string;
-  type: 'main' | 'secondary';
-  balance: number;
+  description?: string | null;
+  balance: string;
   currency: string;
-  color: string;
+  walletType: 'MAIN' | 'SECONDARY' | 'SAVINGS';
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null;
+  isDeleted: boolean;
 }
 
 interface User {
@@ -42,7 +50,8 @@ export default function TopUp() {
     name: 'John Doe',
     role: 'USER'
   });
-  
+
+  const { wallets, loading: walletsLoading, error: walletsError } = useAllWallets() as { wallets: Wallet[], loading: boolean, error: string | null };
   const [topupData, setTopupData] = useState({
     wallet: '',
     amount: '',
@@ -50,14 +59,7 @@ export default function TopUp() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [topupComplete, setTopupComplete] = useState(false);
-
-  // Mock wallet data
-  const wallets: Wallet[] = [
-    { id: '1', name: 'Main Wallet', type: 'main', balance: 8345.67, currency: 'USD', color: 'bg-blue-500' },
-    { id: '2', name: 'Savings Wallet', type: 'secondary', balance: 4000.00, currency: 'USD', color: 'bg-green-500' },
-    { id: '3', name: 'Investment Wallet', type: 'secondary', balance: 2500.50, currency: 'USD', color: 'bg-purple-500' },
-    { id: '4', name: 'Emergency Fund', type: 'secondary', balance: 1500.00, currency: 'USD', color: 'bg-orange-500' },
-  ];
+  const [topupError, setTopupError] = useState<string | null>(null);
 
   const paymentMethods = [
     { value: 'CASH', label: 'Cash', icon: Banknote, description: 'Pay with cash at our partner locations' },
@@ -69,12 +71,30 @@ export default function TopUp() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
-    // Simulate top-up process
-    setTimeout(() => {
+    setTopupError(null);
+    try {
+      const walletId = topupData.wallet;
+      const res = await fetch(`/api/user/wallets/topup/${walletId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          amount: Number(topupData.amount),
+          paymentMethod: topupData.paymentMethod
+        })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setTopupError(data.error || 'Top-up failed');
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(false);
       setTopupComplete(true);
-    }, 2000);
+    } catch (err) {
+      setTopupError('Network error');
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (field: string, value: string) => {
@@ -89,7 +109,7 @@ export default function TopUp() {
     router.push('/');
   };
 
-  const getWalletById = (id: string) => wallets.find(w => w.id === id);
+  const getWalletById = (id: string) => wallets.find((w) => w.id === id);
   const selectedWallet = getWalletById(topupData.wallet);
   const selectedPaymentMethod = paymentMethods.find(pm => pm.value === topupData.paymentMethod);
 
@@ -166,11 +186,12 @@ export default function TopUp() {
                         <SelectValue placeholder="Choose wallet to top up" />
                       </SelectTrigger>
                       <SelectContent>
-                        {wallets.map((wallet) => (
+                        {wallets.filter(wallet => wallet.walletType !== 'SAVINGS').map((wallet) => (
                           <SelectItem key={wallet.id} value={wallet.id}>
-                            <div className="flex items-center space-x-3">
-                              <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${wallet.color}`}></div>
-                              <span className="text-sm">{wallet.name} - ${wallet.balance.toFixed(2)}</span>
+                            <div className="flex flex-row items-center space-x-3">
+                              <span className="text-sm font-bold">{wallet.name} <span className="text-xs font-normal text-gray-500">({wallet.walletType === 'MAIN' ? 'Main' : 'Secondary'})</span></span>
+                              <span className="text-xs text-gray-600">{wallet.walletNumber}</span>
+                              <span className="text-xs">{wallet.currency === 'IDR' ? 'Rp.' : '$'}{wallet.currency === 'IDR' ? parseInt(wallet.balance).toLocaleString('id-ID') : parseFloat(wallet.balance).toFixed(2)}</span>
                             </div>
                           </SelectItem>
                         ))}
@@ -217,6 +238,10 @@ export default function TopUp() {
                     </Select>
                   </div>
 
+                  {topupError && (
+                    <p className="text-red-500 text-sm mt-2">{topupError}</p>
+                  )}
+
                   <Button
                     type="submit"
                     disabled={isLoading || !topupData.wallet || !topupData.amount || !topupData.paymentMethod}
@@ -236,15 +261,15 @@ export default function TopUp() {
                   {selectedWallet && (
                     <div className="p-3 bg-white/20 border-2 border-white border-opacity-30">
                       <p className="font-semibold text-xs sm:text-sm">Wallet</p>
-                      <p className="font-bold text-sm sm:text-base">{selectedWallet.name}</p>
-                      <p className="font-mono text-xs sm:text-sm">Current: ${selectedWallet.balance.toFixed(2)}</p>
+                      <p className="font-bold text-sm sm:text-base">{selectedWallet.currency === 'IDR' ? 'Rp.' : '$'}{selectedWallet.currency === 'IDR' ? parseInt(selectedWallet.balance).toLocaleString('id-ID') : parseFloat(selectedWallet.balance).toFixed(2)}</p>
+                      <p className="font-mono text-xs sm:text-sm">Current: {selectedWallet.currency === 'IDR' ? 'Rp.' : '$'}{selectedWallet.currency === 'IDR' ? parseInt(selectedWallet.balance).toLocaleString('id-ID') : parseFloat(selectedWallet.balance).toFixed(2)}</p>
                     </div>
                   )}
 
                   {topupData.amount && (
                     <div className="p-3 bg-white/20 border-2 border-white border-opacity-30">
                       <p className="font-semibold text-xs sm:text-sm">Amount</p>
-                      <p className="font-black text-lg sm:text-xl">+${topupData.amount}</p>
+                      <p className="font-black text-lg sm:text-xl">{selectedWallet && selectedWallet.currency === 'IDR' ? `+Rp.${parseInt(topupData.amount).toLocaleString('id-ID')}` : `+$${topupData.amount}`}</p>
                     </div>
                   )}
 
@@ -263,13 +288,13 @@ export default function TopUp() {
               <Card className="neo-brutal-card neo-brutal-orange">
                 <h3 className="font-black uppercase mb-4 text-sm sm:text-base">Quick Amounts</h3>
                 <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                  {[50, 100, 250, 500].map((amount) => (
+                  {[50000, 100000, 250000, 500000].map((amount) => (
                     <Button
                       key={amount}
                       onClick={() => handleChange('amount', amount.toString())}
-                      className="neo-brutal bg-white font-bold py-2 px-3 sm:px-4 text-xs sm:text-sm"
+                      className="neo-brutal font-bold py-2 px-3 sm:px-4 text-xs sm:text-sm"
                     >
-                      ${amount}
+                      {selectedWallet && selectedWallet.currency === 'IDR' ? `Rp.${amount.toLocaleString('id-ID')}` : `$${amount}`}
                     </Button>
                   ))}
                 </div>

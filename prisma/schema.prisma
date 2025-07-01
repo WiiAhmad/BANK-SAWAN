@@ -117,13 +117,15 @@ model SavingsPlan {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
 
-  walletId  String?   @unique
+  walletId  String?
   wallet    Wallet?   @relation(fields: [walletId], references: [id])
 
   title       String
   goalAmount  Decimal
   description String?
   targetDate  DateTime
+  category    String? // EMERGENCY, EDUCATION, TRAVEL, etc.
+  priority    String? @default("MEDIUM") // LOW, MEDIUM, HIGH
   currentAmount Decimal @default(0)
   status      String   @default("ACTIVE") // ACTIVE, COMPLETED, ARCHIVED, CANCELLED
   createdAt   DateTime @default(now())
@@ -132,6 +134,7 @@ model SavingsPlan {
   isDeleted   Boolean  @default(false) // Soft delete flag
 
   @@index([userId])
+  @@index([walletId])
 }
 
 

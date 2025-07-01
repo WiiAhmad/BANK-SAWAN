@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
+import { useAllWallets, useAllSavings, useAllTransactions } from '../../hooks/UserData';
 
 interface User {
   email: string;
@@ -34,6 +35,7 @@ interface Transaction {
   from?: string;
   to?: string;
   time: string;
+  description?: string;
 }
 
 interface Wallet {
@@ -42,6 +44,7 @@ interface Wallet {
   type: 'main' | 'secondary';
   balance: number;
   color: string;
+  walletNumber?: string; // Add walletNumber to Wallet interface
 }
 
 interface SavingsGoal {
@@ -55,51 +58,49 @@ interface SavingsGoal {
 }
 
 export default function DashboardContent({ user }: DashboardContentProps) {
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refreshSuccess, setRefreshSuccess] = useState(false);
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    { id: 1, type: 'received', amount: 1250, from: 'Sarah Johnson', time: '2 hours ago' },
-    { id: 2, type: 'sent', amount: 89, to: 'Coffee Shop', time: '5 hours ago' },
-    { id: 3, type: 'received', amount: 2500, from: 'Freelance Payment', time: '1 day ago' },
-    { id: 4, type: 'sent', amount: 156, to: 'Online Shopping', time: '2 days ago' },
-  ]);
+  // Fetch data from hooks
+  const { wallets: apiWallets, loading: walletsLoading, refetch: refetchWallets } = useAllWallets();
+  const { savings: apiSavings, loading: savingsLoading, refetch: refetchSavings } = useAllSavings();
+  const { transactions: apiTransactions, loading: txLoading, refetch: refetchTransactions } = useAllTransactions();
 
-  const [wallets, setWallets] = useState<Wallet[]>([
-    { id: '1', name: 'Main Wallet', type: 'main', balance: 8345.67, color: 'bg-indigo-500' },
-    { id: '2', name: 'Savings Wallet', type: 'secondary', balance: 4000.00, color: 'bg-emerald-500' },
-    { id: '3', name: 'Investment Wallet', type: 'secondary', balance: 2500.50, color: 'bg-violet-500' },
-  ]);
+  // Add local refreshing state
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Mock savings goals data
-  const [savingsGoals] = useState<SavingsGoal[]>([
-    {
-      id: '1',
-      name: 'Emergency Fund',
-      targetAmount: 15000,
-      currentAmount: 8500,
-      targetDate: '2024-12-31',
-      category: 'EMERGENCY',
-      color: 'bg-red-500'
-    },
-    {
-      id: '2',
-      name: 'Dream Vacation',
-      targetAmount: 5000,
-      currentAmount: 2800,
-      targetDate: '2024-08-15',
-      category: 'VACATION',
-      color: 'bg-blue-500'
-    },
-    {
-      id: '3',
-      name: 'New Car',
-      targetAmount: 12000,
-      currentAmount: 4200,
-      targetDate: '2025-03-01',
-      category: 'CAR',
-      color: 'bg-green-500'
-    }
-  ]);
+  // Map API data to local Wallet type (limit 3)
+  const wallets: Wallet[] = (apiWallets || []).slice(0, 3).map((w: any) => ({
+    id: w.id,
+    name: w.name,
+    type: w.walletType === 'MAIN' ? 'main' : 'secondary',
+    balance: Number(w.balance),
+    color: w.walletType === 'MAIN' ? 'bg-indigo-500' : w.walletType === 'SAVINGS' ? 'bg-emerald-500' : 'bg-violet-500',
+    walletNumber: w.walletNumber || w.number || '', // Add wallet number if available
+  }));
+
+  // Map API data to local SavingsGoal type (limit 3)
+  const savingsGoals: SavingsGoal[] = (apiSavings || []).slice(0, 3).map((s: any) => ({
+    id: s.id,
+    name: s.title,
+    targetAmount: Number(s.goalAmount),
+    currentAmount: Number(s.currentAmount),
+    targetDate: s.targetDate,
+    category: s.category || '',
+    color: 'bg-blue-500', // You can map category to color if needed
+  }));
+
+  // Map API data to local Transaction type (limit 5)
+  const userId = (user as any).id || '';
+  const transactions: Transaction[] = (apiTransactions || []).slice(0, 5).map((t: any) => ({
+    id: t.id,
+    type: t.senderId === t.receiverId ? 'received' : (t.senderId === userId ? 'sent' : 'received'),
+    amount: Number(t.amount),
+    from: t.sender?.name || '',
+    to: t.receiver?.name || '',
+    time: new Date(t.createdAt).toLocaleString(),
+    description: t.description || '',
+  }));
+
+  // Use loading state for skeletons
+  const isRefreshing = walletsLoading || savingsLoading || txLoading || refreshing;
 
   const getWelcomeMessage = () => {
     const hour = new Date().getHours();
@@ -109,37 +110,19 @@ export default function DashboardContent({ user }: DashboardContentProps) {
   };
 
   const fetchDashboardData = async () => {
-    setIsRefreshing(true);
-    
-    // Simulate API call with random data updates
-    setTimeout(() => {
-      // Update wallet balances with small random changes
-      setWallets(prev => prev.map(wallet => ({
-        ...wallet,
-        balance: wallet.balance + (Math.random() - 0.5) * 100
-      })));
-
-      // Add a new mock transaction occasionally
-      if (Math.random() > 0.5) {
-        const newTransaction: Transaction = {
-          id: Date.now(),
-          type: Math.random() > 0.5 ? 'received' : 'sent',
-          amount: Math.floor(Math.random() * 500) + 50,
-          [Math.random() > 0.5 ? 'from' : 'to']: 'Recent Transaction',
-          time: 'Just now'
-        };
-        
-        setTransactions(prev => [newTransaction, ...prev.slice(0, 3)]);
-      }
-
-      setIsRefreshing(false);
-      setRefreshSuccess(true);
-      
-      // Hide success message after 3 seconds
-      setTimeout(() => {
-        setRefreshSuccess(false);
-      }, 3000);
-    }, 1500);
+    setRefreshing(true);
+    try {
+      // Await all refetches in parallel if available
+      await Promise.all([
+        refetchWallets?.(),
+        refetchSavings?.(),
+        refetchTransactions?.(),
+      ]);
+    } catch (e) {
+      // Optionally handle error
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const mainWallet = wallets.find(w => w.type === 'main');
@@ -223,16 +206,6 @@ export default function DashboardContent({ user }: DashboardContentProps) {
         </Button>
       </div>
 
-      {/* Success Message */}
-      {refreshSuccess && (
-        <Card className="neo-brutal-card neo-brutal-emerald mb-4 sm:mb-6">
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-emerald-700 dark:text-emerald-300" />
-            <p className="font-black uppercase text-xs sm:text-sm lg:text-base text-emerald-800 dark:text-emerald-200">Dashboard refreshed successfully!</p>
-          </div>
-        </Card>
-      )}
-
       {/* Stats Cards - Improved responsive grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
         {isRefreshing ? (
@@ -255,7 +228,7 @@ export default function DashboardContent({ user }: DashboardContentProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-bold uppercase text-xs sm:text-sm mb-1 text-emerald-800 dark:text-emerald-200">Total Balance</p>
-                  <p className="text-sm sm:text-lg lg:text-xl font-black text-emerald-900 dark:text-emerald-100">${totalBalance.toFixed(2)}</p>
+                  <p className="text-sm sm:text-lg lg:text-xl font-black text-emerald-900 dark:text-emerald-100">Rp. {totalBalance.toLocaleString()}</p>
                 </div>
                 <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 text-emerald-800 dark:text-emerald-200" />
               </div>
@@ -265,7 +238,7 @@ export default function DashboardContent({ user }: DashboardContentProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-bold uppercase text-xs sm:text-sm mb-1 text-amber-800 dark:text-amber-200">Monthly Income</p>
-                  <p className="text-sm sm:text-lg lg:text-xl font-black text-amber-900 dark:text-amber-100">$4,250</p>
+                  <p className="text-sm sm:text-lg lg:text-xl font-black text-amber-900 dark:text-amber-100">Rp. 4,250</p>
                 </div>
                 <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 text-amber-800 dark:text-amber-200" />
               </div>
@@ -275,7 +248,7 @@ export default function DashboardContent({ user }: DashboardContentProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-bold uppercase text-xs sm:text-sm mb-1 text-violet-800 dark:text-violet-200">Monthly Spending</p>
-                  <p className="text-sm sm:text-lg lg:text-xl font-black text-violet-900 dark:text-violet-100">$1,875</p>
+                  <p className="text-sm sm:text-lg lg:text-xl font-black text-violet-900 dark:text-violet-100">Rp. 1,875</p>
                 </div>
                 <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 text-violet-800 dark:text-violet-200" />
               </div>
@@ -287,7 +260,7 @@ export default function DashboardContent({ user }: DashboardContentProps) {
                   <p className="font-bold uppercase text-xs sm:text-sm mb-1">Savings Goal</p>
                   <p className="text-sm sm:text-lg lg:text-xl font-black">{savingsProgress.toFixed(0)}%</p>
                 </div>
-                <div className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 rounded-full bg-white bg-opacity-20 flex items-center justify-center">
+                <div className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 rounded-full bg-white/20 flex items-center justify-center">
                   <Target className="h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5" />
                 </div>
               </div>
@@ -311,22 +284,25 @@ export default function DashboardContent({ user }: DashboardContentProps) {
             {isRefreshing ? (
               <Card className="neo-brutal-card bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
                 <div className="flex items-center justify-between mb-2">
-                  <Skeleton className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-white bg-opacity-30" />
-                  <Skeleton className="w-10 h-3 rounded bg-white bg-opacity-30" />
+                  <Skeleton className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-white/30" />
+                  <Skeleton className="w-10 h-3 rounded bg-white/30" />
                 </div>
-                <Skeleton className="w-16 h-3 mb-1 bg-white bg-opacity-30" />
-                <Skeleton className="w-20 h-4 bg-white bg-opacity-30" />
+                <Skeleton className="w-16 h-3 mb-1 bg-white/30" />
+                <Skeleton className="w-20 h-4 bg-white/30" />
               </Card>
             ) : mainWallet && (
               <Card className="neo-brutal-card bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
                 <div className="flex items-center justify-between mb-2">
-                  <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full ${mainWallet.color} bg-opacity-30 flex items-center justify-center`}>
+                  <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full ${mainWallet.color} flex items-center justify-center`}>
                     <Wallet className="h-3 w-3 sm:h-4 sm:w-4" />
                   </div>
-                  <span className="text-xs font-bold uppercase bg-white bg-opacity-20 px-2 py-1 rounded">Main</span>
+                  <span className="text-xs font-bold uppercase bg-white/20 px-2 py-1 rounded">Main</span>
                 </div>
                 <p className="font-bold uppercase text-xs sm:text-sm mb-1">{mainWallet.name}</p>
-                <p className="text-sm sm:text-lg lg:text-xl font-black">${mainWallet.balance.toFixed(2)}</p>
+                <p className="text-sm sm:text-lg lg:text-xl font-black">Rp. {mainWallet.balance.toLocaleString()}</p>
+                {mainWallet.walletNumber && (
+                  <p className="font-bold sm:text-sm font-mono mt-1">{mainWallet.walletNumber}</p>
+                )}
               </Card>
             )}
 
@@ -346,7 +322,10 @@ export default function DashboardContent({ user }: DashboardContentProps) {
                     <span className="text-xs font-bold uppercase bg-cyan-600 dark:bg-cyan-700 text-white px-2 py-1 rounded">Secondary</span>
                   </div>
                   <p className="font-bold uppercase text-xs sm:text-sm mb-1 text-cyan-800 dark:text-cyan-200">{wallet.name}</p>
-                  <p className="text-sm sm:text-lg lg:text-xl font-black text-cyan-900 dark:text-cyan-100">${wallet.balance.toFixed(2)}</p>
+                  <p className="text-sm sm:text-lg lg:text-xl font-black text-cyan-900 dark:text-cyan-100">Rp. {wallet.balance.toLocaleString()}</p>
+                  {wallet.walletNumber && (
+                    <p className="font-bold sm:text-sm text-cyan-700 dark:text-cyan-200 font-mono mt-1">{wallet.walletNumber}</p>
+                  )}
                 </Card>
               ))
             )}
@@ -357,7 +336,7 @@ export default function DashboardContent({ user }: DashboardContentProps) {
             <h2 className="text-lg sm:text-xl lg:text-2xl font-black uppercase mb-3 sm:mb-4 dark:text-white">Quick Actions</h2>
             <div className="grid grid-cols-2 gap-3 sm:gap-4">
               <Link href="/dashboard/transfer">
-                <Button className="neo-brutal-button h-14 sm:h-16 lg:h-20 flex-col space-y-1 sm:space-y-2 w-full">
+                <Button className="neo-brutal neo-brutal-button h-14 sm:h-16 lg:h-20 flex-col space-y-1 sm:space-y-2 w-full">
                   <Send className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6" />
                   <span className="text-xs sm:text-sm">Send Money</span>
                 </Button>
@@ -384,7 +363,7 @@ export default function DashboardContent({ user }: DashboardContentProps) {
           <div className="space-y-3 sm:space-y-4">
             {isRefreshing ? (
               <>
-                {[...Array(3)].map((_, i) => (
+                {[...Array(2)].map((_, i) => (
                   <SavingsGoalSkeleton key={i} />
                 ))}
               </>
@@ -395,23 +374,24 @@ export default function DashboardContent({ user }: DashboardContentProps) {
                   <Card key={goal.id} className="neo-brutal-card">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-3">
-                        <div className={`w-8 h-8 rounded-full ${goal.color} flex items-center justify-center text-white text-sm`}>
-                          <Target className="h-4 w-4" />
+                        <div className={`w-8 h-8 rounded-full ${goal.color} flex items-center justify-center`}>
+                          <Target className="h-4 w-4 text-white" />
                         </div>
                         <div>
-                          <h3 className="font-black uppercase text-sm dark:text-white">{goal.name}</h3>
-                          <p className="font-semibold text-xs text-gray-600 dark:text-gray-400">
-                            ${goal.currentAmount.toFixed(0)} / ${goal.targetAmount.toFixed(0)}
-                          </p>
+                          <p className="font-bold uppercase text-xs sm:text-sm mb-1">{goal.name}</p>
+                          <p className="text-xs text-gray-500">Target: {goal.targetDate}</p>
                         </div>
                       </div>
-                      <span className="font-black text-sm dark:text-white">{progress.toFixed(0)}%</span>
+                      <span className="text-xs font-bold uppercase bg-blue-100 text-blue-800 px-2 py-1 rounded">{goal.category}</span>
                     </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 h-2 border border-black dark:border-white">
-                      <div 
-                        className={`h-full ${goal.color} transition-all duration-300`}
-                        style={{ width: `${progress}%` }}
-                      ></div>
+                    <div className="mb-2">
+                      <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                        <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">Rp. {goal.currentAmount.toLocaleString()} / Rp. {goal.targetAmount.toLocaleString()}</span>
+                      <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">{progress.toFixed(0)}%</span>
                     </div>
                   </Card>
                 );
@@ -441,54 +421,31 @@ export default function DashboardContent({ user }: DashboardContentProps) {
       <Card className="neo-brutal-card neo-brutal-sky">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
           <h2 className="text-lg sm:text-xl lg:text-2xl font-black uppercase text-sky-800 dark:text-sky-200">Recent Transactions</h2>
-          <div className="flex space-x-2 sm:space-x-3">
-            <Button
-              onClick={fetchDashboardData}
-              disabled={isRefreshing}
-              className="neo-brutal-refresh font-bold text-xs sm:text-sm py-2 px-3"
-            >
-              <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            <Button className="neo-brutal-view-all font-bold text-xs sm:text-sm py-2 px-3">View All</Button>
-          </div>
+          <div className="flex space-x-2 sm:space-x-3"></div>
         </div>
         <div className="space-y-2 sm:space-y-3 lg:space-y-4">
           {isRefreshing ? (
             <>
-              <TransactionSkeleton />
-              <TransactionSkeleton />
-              <TransactionSkeleton />
-              <TransactionSkeleton />
+              {[...Array(5)].map((_, i) => (
+                <TransactionSkeleton key={i} />
+              ))}
             </>
           ) : (
-            transactions.map((transaction) => (
-              <div key={transaction.id} className="flex items-center justify-between p-2 sm:p-3 lg:p-4 border-2 border-sky-300 dark:border-sky-600 hover:bg-sky-100 dark:hover:bg-sky-700 transition-colors rounded">
-                <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
-                  <div className={`p-1 sm:p-2 border-2 border-black dark:border-white ${
-                    transaction.type === 'received' ? 'bg-emerald-400 dark:bg-emerald-500' : 'bg-rose-400 dark:bg-rose-500'
-                  }`}>
-                    {transaction.type === 'received' ? (
-                      <ArrowDownLeft className="h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5" />
-                    ) : (
-                      <ArrowUpRight className="h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5" />
-                    )}
+            transactions.map((tx) => (
+              <div key={tx.id} className="flex items-center justify-between p-2 sm:p-3 lg:p-4 border-2 border-gray-200 dark:border-gray-600 rounded-lg">
+                <div className="flex items-center space-x-2 sm:space-x-3">
+                  <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full ${tx.type === 'received' ? 'bg-emerald-500' : 'bg-rose-500'} flex items-center justify-center`}>
+                    {tx.type === 'received' ? <ArrowDownLeft className="h-4 w-4 text-white" /> : <ArrowUpRight className="h-4 w-4 text-white" />}
                   </div>
                   <div>
-                    <p className="font-bold text-xs sm:text-sm lg:text-base text-sky-800 dark:text-sky-200">
-                      {transaction.type === 'received' ? 'From' : 'To'}: {' '}
-                      {transaction.type === 'received' ? transaction.from : transaction.to}
-                    </p>
-                    <p className="font-semibold text-xs sm:text-sm text-sky-600 dark:text-sky-400">{transaction.time}</p>
+                    <p className="font-bold text-xs sm:text-sm mb-1">{tx.type === 'received' ? `From: ${tx.from}` : `To: ${tx.to}`}</p>
+                    {tx.description && (
+                      <p className="text-xs text-gray-700 dark:text-gray-300 mb-1">{tx.description}</p>
+                    )}
+                    <p className="text-xs text-gray-500">{tx.time}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className={`font-black text-xs sm:text-sm lg:text-base ${
-                    transaction.type === 'received' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
-                  }`}>
-                    {transaction.type === 'received' ? '+' : '-'}${transaction.amount}
-                  </p>
-                </div>
+                <span className={`font-black text-sm sm:text-base ${tx.type === 'received' ? 'text-emerald-700' : 'text-rose-700'}`}>{tx.type === 'received' ? '+' : '-'}Rp. {tx.amount.toLocaleString()}</span>
               </div>
             ))
           )}

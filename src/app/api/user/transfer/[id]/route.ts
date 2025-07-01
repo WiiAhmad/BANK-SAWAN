@@ -4,10 +4,12 @@ import { decryptToken } from '@/lib/auth';
 
 export async function POST(
     request: NextRequest,
-     { params }: { params: { id: string } }
-    ) {
+    context: { params: { id: string } }
+) {
     try {
         // Await params for Next.js App Router
+        const { params } = context;
+        const walletSenderId = params.id;
         const token = request.cookies.get('token')?.value;
         if (!token) {
             return NextResponse.json({ error: 'Unauthorized: No token. Please provide a valid authentication token in your cookies.' }, { status: 401 });
@@ -19,8 +21,7 @@ export async function POST(
         }
 
         const body = await request.json();
-        const { amount, walletNumber } = body;
-        const walletSenderId = params.id;
+        const { amount, walletNumber, desc } = body;
 
         if (!walletSenderId || typeof amount !== 'number' || amount < 9999 || isNaN(amount)) {
             return NextResponse.json({ error: 'Invalid or missing fields' }, { status: 400 });
@@ -74,7 +75,7 @@ export async function POST(
                     amount,
                     currency: senderWallet.currency,
                     status: 'COMPLETED',
-                    description: `Transfer to ${walletNumber}`,
+                    description: desc || `Transfer to ${walletNumber}`,
                     completedAt: new Date(),
                 },
             });

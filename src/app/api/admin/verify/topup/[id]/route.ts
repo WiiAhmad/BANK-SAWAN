@@ -5,21 +5,20 @@ import { decryptToken } from '@/lib/auth'; // Assuming you have a decryptToken f
 
 export async function POST(
     request: NextRequest,
-    contextPromise: Promise<{ params: { id: string } }>
+    { params }: { params: { id: string } }
 ) {
     try {
-        // Await context to get params
-        const { params } = await contextPromise;
         const body = await request.json();
         const { status } = body;
-        console.log('params:', params);
-        if (!params.id || typeof params.id !== 'string') {
-            return NextResponse.json(
-                { error: 'Invalid topup request ID' },
-                { status: 400 }
-            );
-        }
-        const topupId = params.id; // Get topup request ID from the URL
+        const topupId = await params.id; // Get topup request ID from the URL
+        // console.log('params:', params);
+        // if (!params.id || typeof params.id !== 'string') {
+        //     return NextResponse.json(
+        //         { error: 'Invalid topup request ID' },
+        //         { status: 400 }
+        //     );
+        // }
+        
         const userToken = request.cookies.get('token')?.value;
 
         if (!userToken) {
@@ -112,6 +111,17 @@ export async function POST(
                     balance: {
                         increment: updatedTopup.amount, // Increment the wallet balance
                     },
+                },
+            });
+            // Create a transaction record for the approved topup
+            await prisma.transaction.create({
+                data: {
+                    senderId: user.userId, // Use the current admin as sender
+                    receiverId: updatedTopup.userId,
+                    receiverWalletId: wallet.id,
+                    amount: updatedTopup.amount,
+                    status: 'COMPLETED',
+                    description: `Topup approved via ${updatedTopup.paymentMethod}`,
                 },
             });
         }

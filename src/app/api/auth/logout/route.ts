@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     // Read cookies from the request
     const userToken = request.cookies.get('token')?.value
 
-    console.log('Logout request received with userToken:', userToken)
+    // console.log('Logout request received with userToken:', userToken)
     if (!userToken) {
       return NextResponse.json(
         { error: 'Session ID and Authorization User cookie are required' },

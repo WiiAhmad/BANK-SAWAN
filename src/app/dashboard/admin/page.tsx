@@ -41,9 +41,11 @@ export default function AdminDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshSuccess, setRefreshSuccess] = useState(false);
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0); // Add refreshKey state
 
-  const { topups, loading: loadingTopups, error: errorTopups } = useVerifyTopups();
-  const { users: verifyUsers, loading: loadingUsers, error: errorUsers } = useVerifyUsers();
+  // Pass refreshKey to hooks so they re-fetch when it changes
+  const { topups, loading: loadingTopups, error: errorTopups } = useVerifyTopups(refreshKey);
+  const { users: verifyUsers, loading: loadingUsers, error: errorUsers } = useVerifyUsers(refreshKey);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -158,16 +160,21 @@ export default function AdminDashboard() {
   };
 
   const refreshDashboard = async () => {
+    console.log(localStorage.getItem('verify_topups'));
+    console.log(localStorage.getItem('verify_users'));
+    localStorage.removeItem('verify_topups');
+    localStorage.removeItem('verify_users');
     setIsRefreshing(true);
-    // Fetch verify topups and users
     try {
       await Promise.all([
-        fetch('/api/admin/verify-topup', { credentials: 'include' }),
-        fetch('/api/admin/verify', { credentials: 'include' })
+        fetch('/api/admin/verify-topup', { credentials: 'include', cache: 'no-store' }),
+        fetch('/api/admin/verify', { credentials: 'include', cache: 'no-store' })
       ]);
     } catch (e) {
       // Optionally handle error
     }
+    setRefreshKey((k) => k + 1); // Trigger hooks to re-fetch
+    console.log('Dashboard refreshed');
     setIsRefreshing(false);
     setRefreshSuccess(true);
     setTimeout(() => {
@@ -175,24 +182,11 @@ export default function AdminDashboard() {
     }, 3000);
   };
 
-  // Get verify_users from localStorage for stats
-  let localVerifyUsers: any[] = [];
-  if (typeof window !== 'undefined') {
-    try {
-      const stored = localStorage.getItem('verify_users');
-      if (stored) {
-        localVerifyUsers = JSON.parse(stored);
-      }
-    } catch (e) {
-      localVerifyUsers = [];
-    }
-  }
-
   // Admin statistics from fetched data
   const stats: AdminStats = {
     pendingTopups: topups?.filter((t: any) => t.status === 'PENDING').length || 0,
-    pendingUsers: localVerifyUsers.filter((u: any) => u.verificationStatus === 'PENDING').length,
-    totalUsers: localVerifyUsers.length,
+    pendingUsers: verifyUsers?.filter((u: any) => u.verificationStatus === 'PENDING').length || 0,
+    totalUsers: verifyUsers?.length || 0,
     monthlyGrowth: topups?.length || 0 // now used for total topups
   };
 
@@ -356,7 +350,7 @@ export default function AdminDashboard() {
           {/* Recent Activities */}
           <Card className="neo-brutal-card w-full">
             <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <h2 className="text-lg sm:text-2xl font-black uppercase">Recent Admin Activities</h2>
+              <h2 className="text-lg sm:text-2xl font-black uppercase">Recent Pending Activities</h2>
             </div>
             <div className="space-y-3 sm:space-y-4">
               {showActivitiesSkeleton ? (
@@ -383,8 +377,8 @@ export default function AdminDashboard() {
                         </div>
                         <div>
                           <p className="font-bold text-sm">
-                            {activity.type === 'verify_topup' && `Top-up verified: ${activity.user}`}
-                            {activity.type === 'verify_user' && `User verified: ${activity.user}`}
+                            {activity.type === 'verify_topup' && `Top-up ${activity.user}`}
+                            {activity.type === 'verify_user' && `User ${activity.user}`}
                           </p>
                           <p className="font-semibold text-xs text-gray-600">{activity.time}</p>
                         </div>

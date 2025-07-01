@@ -22,7 +22,7 @@ export default function Home() {
             <div className="neo-brutal bg-black dark:bg-white text-white dark:text-black p-2 sm:p-3">
               <CreditCard className="h-6 w-6 sm:h-8 sm:w-8" />
             </div>
-            <span className="text-xl sm:text-2xl font-black uppercase tracking-wider dark:text-white">MBank</span>
+            <span className="text-xl sm:text-2xl font-black uppercase tracking-wider dark:text-white">Bank Sawan</span>
           </div>
           <div className="flex items-center space-x-2 sm:space-x-6">
             {/* <ThemeToggle /> */}
@@ -42,7 +42,7 @@ export default function Home() {
               <span className="block text-emerald-500 dark:text-emerald-400">Starts Here</span>
             </h1>
             <p className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-gray-200 max-w-lg mx-auto lg:mx-0">
-              Experience lightning-fast transactions, military-grade security, and 24/7 availability with MBank's cutting-edge mobile banking platform.
+              Experience lightning-fast transactions, military-grade security, and 24/7 availability with Bank Sawan's cutting-edge mobile banking platform.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto lg:mx-0">
               <Link href="/register" className="neo-brutal neo-brutal-button text-center flex-1">
@@ -57,7 +57,7 @@ export default function Home() {
             <div className="neo-brutal neo-brutal-card bg-gradient-to-br from-indigo-500 to-violet-600 text-white">
               <div className="space-y-4 sm:space-y-6">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold uppercase text-sm sm:text-base">MBank Card</span>
+                  <span className="font-bold uppercase text-sm sm:text-base">Bank Sawan Card</span>
                   <div className="flex space-x-2">
                     <div className="w-6 h-6 sm:w-8 sm:h-8 bg-white rounded-full"></div>
                     <div className="w-6 h-6 sm:w-8 sm:h-8 bg-amber-400 rounded-full"></div>
@@ -79,7 +79,7 @@ export default function Home() {
       {/* Features Section */}
       <section className="container mx-auto px-4 py-8 sm:py-16">
         <h2 className="text-3xl sm:text-4xl lg:text-6xl font-black uppercase text-center mb-8 sm:mb-16 dark:text-white">
-          Why Choose MBank?
+          Why Choose Bank Sawan?
         </h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
           <Card className="neo-brutal neo-brutal-card neo-brutal-emerald">
@@ -125,10 +125,10 @@ export default function Home() {
       <section className="container mx-auto px-4 py-8 sm:py-16">
         <div className="neo-brutal neo-brutal-card bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-center">
           <h2 className="text-3xl sm:text-4xl lg:text-6xl font-black uppercase mb-6 sm:mb-8">
-            Ready to Start?
+            Ready to Start? JOIN Bank Sawan
           </h2>
           <p className="text-lg sm:text-xl font-semibold mb-6 sm:mb-8 max-w-2xl mx-auto">
-            Join millions of users who have already revolutionized their banking experience with MBank.
+            Join millions of users who have already revolutionized their banking experience with Bank Sawan.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
             <Link href="/register" className="neo-brutal bg-white text-black font-bold py-3 px-4 sm:py-4 sm:px-8 uppercase tracking-wider inline-flex items-center justify-center text-sm sm:text-base">
@@ -148,7 +148,7 @@ export default function Home() {
             <div className="col-span-2 lg:col-span-1">
               <div className="flex items-center space-x-2 mb-4">
                 <CreditCard className="h-6 w-6 sm:h-8 sm:w-8" />
-                <span className="text-xl sm:text-2xl font-black uppercase">MBank</span>
+                <span className="text-xl sm:text-2xl font-black uppercase">Bank Sawan</span>
               </div>
               <p className="font-semibold text-sm sm:text-base">The future of digital banking is here.</p>
             </div>
@@ -181,7 +181,7 @@ export default function Home() {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-6 sm:mt-8 pt-6 sm:pt-8 text-center font-semibold text-sm">
-            <p>&copy; 2025 MBank. All rights reserved.</p>
+            <p>&copy; 2025 Bank Sawan. All rights reserved.</p>
           </div>
         </div>
       </footer>
