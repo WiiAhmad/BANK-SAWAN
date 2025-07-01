@@ -215,7 +215,7 @@ export default function Settings() {
             <div className="flex items-center space-x-3 sm:space-x-4">
               <Button
                 onClick={() => router.push('/dashboard')}
-                className="neo-brutal bg-white p-2 sm:p-3 hidden md:flex"
+                className="neo-brutal  p-2 sm:p-3 hidden md:flex"
               >
                 <ArrowLeft className="h-4 w-4 sm:h-6 sm:w-6" />
               </Button>
@@ -444,15 +444,15 @@ export default function Settings() {
               <Card className="neo-brutal-card bg-gradient-to-br from-purple-500 to-pink-600 text-white">
                 <h3 className="font-black uppercase mb-4 text-sm sm:text-base">Account Summary</h3>
                 <div className="space-y-3 sm:space-y-4">
-                  <div className="p-3 bg-white bg-opacity-20 border-2 border-white border-opacity-30">
+                  <div className="p-3  bg-opacity-20 border-2 border-white border-opacity-30">
                     <p className="font-semibold text-xs sm:text-sm">Account Type</p>
                     <p className="font-bold text-sm sm:text-base">{user.role}</p>
                   </div>
-                  <div className="p-3 bg-white bg-opacity-20 border-2 border-white border-opacity-30">
+                  <div className="p-3  bg-opacity-20 border-2 border-white border-opacity-30">
                     <p className="font-semibold text-xs sm:text-sm">Member Since</p>
                     <p className="font-bold text-sm sm:text-base">January 2024</p>
                   </div>
-                  <div className="p-3 bg-white bg-opacity-20 border-2 border-white border-opacity-30">
+                  <div className="p-3  bg-opacity-20 border-2 border-white border-opacity-30">
                     <p className="font-semibold text-xs sm:text-sm">Status</p>
                     <div className="flex items-center space-x-2">
                       <div className="w-2 h-2 bg-green-400 rounded-full"></div>

@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     if (error || !user) {
       return NextResponse.json({ error: error || 'Unauthorized' }, { status: status || 401 });
     }
-    const { title, goalAmount, description, targetDate } = await request.json();
+    const { title, goalAmount, description, targetDate, category, priority } = await request.json();
     if (!title || !goalAmount || !targetDate) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
@@ -66,6 +66,8 @@ export async function POST(request: NextRequest) {
       goalAmount,
       description,
       targetDate: new Date(targetDate),
+      category, // add category
+      priority, // add priority
       },
     });
     return NextResponse.json(savingsPlan, { status: 201 });

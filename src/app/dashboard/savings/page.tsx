@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,7 @@ import {
   ArrowDownLeft
 } from 'lucide-react';
 import Navbar from '@/components/dashboard/Navbar';
+import { useAllSavings } from '@/hooks/UserData';
 
 interface User {
   email: string;
@@ -47,7 +48,6 @@ interface SavingsGoal {
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
   status: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED' | 'CANCELLED';
   createdAt: string;
-  color: string;
 }
 
 interface Wallet {
@@ -64,99 +64,47 @@ interface SavingsGoalFormData {
   targetDate: string;
   category: string;
   priority: string;
-  color: string;
 }
+
+// Helper for formatting IDR
+const formatIDR = (amount: number) => `Rp. ${Math.floor(amount).toLocaleString('id-ID')}`;
 
 export default function SavingsGoals() {
   const router = useRouter();
+  const { savings, loading, error, refetch } = useAllSavings();
   const [user, setUser] = useState<User>({
     email: 'user@example.com',
     name: 'John Doe',
     role: 'USER'
   });
-  
-  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([
-    {
-      id: '1',
-      name: 'Emergency Fund',
-      description: 'Build a 6-month emergency fund for unexpected expenses',
-      targetAmount: 15000,
-      currentAmount: 8500,
-      targetDate: '2024-12-31',
-      category: 'EMERGENCY',
-      priority: 'HIGH',
-      status: 'ACTIVE',
-      createdAt: '2024-01-15',
-      color: 'bg-red-500'
-    },
-    {
-      id: '2',
-      name: 'Dream Vacation',
-      description: 'Trip to Japan for 2 weeks including flights and accommodation',
-      targetAmount: 5000,
-      currentAmount: 5000,
-      targetDate: '2024-08-15',
-      category: 'VACATION',
-      priority: 'MEDIUM',
-      status: 'COMPLETED',
-      createdAt: '2024-02-01',
-      color: 'bg-blue-500'
-    },
-    {
-      id: '3',
-      name: 'New Car',
-      description: 'Down payment for a new electric vehicle',
-      targetAmount: 12000,
-      currentAmount: 4200,
-      targetDate: '2025-03-01',
-      category: 'CAR',
-      priority: 'MEDIUM',
-      status: 'ACTIVE',
-      createdAt: '2024-02-15',
-      color: 'bg-green-500'
-    },
-    {
-      id: '4',
-      name: 'Old Laptop Fund',
-      description: 'Saving for a new laptop - no longer needed',
-      targetAmount: 2000,
-      currentAmount: 800,
-      targetDate: '2024-06-01',
-      category: 'OTHER',
-      priority: 'LOW',
-      status: 'CANCELLED',
-      createdAt: '2024-01-01',
-      color: 'bg-gray-500'
-    },
-    {
-      id: '5',
-      name: 'Wedding Fund',
-      description: 'Completed wedding savings - archived for reference',
-      targetAmount: 8000,
-      currentAmount: 8000,
-      targetDate: '2023-12-01',
-      category: 'OTHER',
-      priority: 'HIGH',
-      status: 'ARCHIVED',
-      createdAt: '2023-06-01',
-      color: 'bg-purple-500'
-    }
-  ]);
 
-  const [wallets, setWallets] = useState<Wallet[]>([
-    { id: '1', name: 'Main Wallet', balance: 8345.67, color: 'bg-indigo-500' },
-    { id: '2', name: 'Savings Wallet', balance: 4000.00, color: 'bg-emerald-500' },
-    { id: '3', name: 'Investment Wallet', balance: 2500.50, color: 'bg-violet-500' },
-  ]);
+  // Wallets state: fetched from localStorage, exclude SAVINGS wallets
+  const [wallets, setWallets] = useState<Wallet[]>([]);
+  useEffect(() => {
+    const localWallets = localStorage.getItem('user_wallets');
+    if (localWallets) {
+      try {
+        const parsed = JSON.parse(localWallets);
+        // Only include wallets that are not SAVINGS
+        setWallets(parsed.filter((w: any) => w.walletType !== 'SAVINGS').map((w: any) => ({
+          id: w.id,
+          name: w.name,
+          balance: Number(w.balance),
+        })));
+      } catch {}
+    }
+  }, []);
+
+  // Remove local savingsGoals state, use backend data
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
 
   const [newGoal, setNewGoal] = useState<SavingsGoalFormData>({
     name: '',
     description: '',
     targetAmount: '',
     targetDate: '',
-    category: 'OTHER',
-    priority: 'MEDIUM',
-    color: 'bg-indigo-500'
+    category: '', // always default to a valid value
+    priority: '', // always default to a valid value
   });
 
   const [editingGoal, setEditingGoal] = useState<SavingsGoal | null>(null);
@@ -165,9 +113,8 @@ export default function SavingsGoals() {
     description: '',
     targetAmount: '',
     targetDate: '',
-    category: 'OTHER',
-    priority: 'MEDIUM',
-    color: 'bg-indigo-500'
+    category: '',
+    priority: '',
   });
 
   const [transferData, setTransferData] = useState({
@@ -188,7 +135,9 @@ export default function SavingsGoals() {
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [isRedeemDialogOpen, setIsRedeemDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [goalToDelete, setGoalToDelete] = useState<SavingsGoal | null>(null);
+  const [goalToCancel, setGoalToCancel] = useState<SavingsGoal | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string>('');
 
   const categoryOptions = [
@@ -199,17 +148,6 @@ export default function SavingsGoals() {
     { value: 'EDUCATION', label: 'Education', icon: '🎓' },
     { value: 'RETIREMENT', label: 'Retirement', icon: '👴' },
     { value: 'OTHER', label: 'Other', icon: '🎯' },
-  ];
-
-  const colorOptions = [
-    { value: 'bg-indigo-500', label: 'Indigo', color: 'bg-indigo-500' },
-    { value: 'bg-emerald-500', label: 'Emerald', color: 'bg-emerald-500' },
-    { value: 'bg-violet-500', label: 'Violet', color: 'bg-violet-500' },
-    { value: 'bg-rose-500', label: 'Rose', color: 'bg-rose-500' },
-    { value: 'bg-amber-500', label: 'Amber', color: 'bg-amber-500' },
-    { value: 'bg-cyan-500', label: 'Cyan', color: 'bg-cyan-500' },
-    { value: 'bg-pink-500', label: 'Pink', color: 'bg-pink-500' },
-    { value: 'bg-teal-500', label: 'Teal', color: 'bg-teal-500' },
   ];
 
   const handleLogout = () => {
@@ -224,35 +162,62 @@ export default function SavingsGoals() {
     }, 3000);
   };
 
-  const handleCreateGoal = () => {
-    if (!newGoal.name.trim() || !newGoal.targetAmount) return;
+  // Sync backend data to UI state
+  useEffect(() => {
+    if (Array.isArray(savings)) {
+      setSavingsGoals(
+        savings.map((plan: any) => ({
+          id: plan.id,
+          name: plan.title,
+          description: plan.description || '',
+          targetAmount: Number(plan.goalAmount),
+          currentAmount: Number(plan.currentAmount),
+          targetDate: plan.targetDate ? plan.targetDate.split('T')[0] : '',
+          category: plan.category || 'OTHER',
+          priority: plan.priority || 'MEDIUM',
+          status: plan.status || 'ACTIVE',
+          createdAt: plan.createdAt ? plan.createdAt.split('T')[0] : '',
+        }))
+      );
+    }
+  }, [savings]);
 
-    const goal: SavingsGoal = {
-      id: Date.now().toString(),
-      name: newGoal.name,
-      description: newGoal.description,
-      targetAmount: parseFloat(newGoal.targetAmount),
-      currentAmount: 0,
-      targetDate: newGoal.targetDate,
-      category: newGoal.category as any,
-      priority: newGoal.priority as any,
-      status: 'ACTIVE',
-      createdAt: new Date().toISOString().split('T')[0],
-      color: newGoal.color
-    };
-
-    setSavingsGoals([...savingsGoals, goal]);
-    setNewGoal({
-      name: '',
-      description: '',
-      targetAmount: '',
-      targetDate: '',
-      category: 'OTHER',
-      priority: 'MEDIUM',
-      color: 'bg-indigo-500'
-    });
-    setIsCreateDialogOpen(false);
-    showSuccessMessage('Savings goal created successfully');
+  // CREATE
+  const handleCreateGoal = async () => {
+    if (!newGoal.name.trim() || !newGoal.targetAmount || !newGoal.category || !newGoal.priority) return;
+    try {
+      const res = await fetch('/api/user/savings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: newGoal.name,
+          goalAmount: Number(newGoal.targetAmount),
+          description: newGoal.description,
+          targetDate: newGoal.targetDate,
+          category: newGoal.category, // always send string
+          priority: newGoal.priority, // always send string
+        }),
+      });
+      if (res.ok) {
+        await refetch();
+        setNewGoal({
+          name: '',
+          description: '',
+          targetAmount: '',
+          targetDate: '',
+          category: '',
+          priority: '',
+        });
+        setIsCreateDialogOpen(false);
+        showSuccessMessage('Savings goal created successfully');
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to create savings goal');
+      }
+    } catch (e) {
+      alert('Network error');
+    }
   };
 
   const handleEditGoal = (goal: SavingsGoal) => {
@@ -264,46 +229,78 @@ export default function SavingsGoals() {
       targetDate: goal.targetDate,
       category: goal.category,
       priority: goal.priority,
-      color: goal.color
     });
     setIsEditDialogOpen(true);
   };
 
-  const handleUpdateGoal = () => {
+  // EDIT
+  const handleUpdateGoal = async () => {
     if (!editingGoal || !editGoalData.name.trim() || !editGoalData.targetAmount) return;
-
-    setSavingsGoals(prev => prev.map(goal => 
-      goal.id === editingGoal.id 
-        ? { 
-            ...goal, 
-            name: editGoalData.name,
-            description: editGoalData.description,
-            targetAmount: parseFloat(editGoalData.targetAmount),
-            targetDate: editGoalData.targetDate,
-            category: editGoalData.category as any,
-            priority: editGoalData.priority as any,
-            color: editGoalData.color
-          }
-        : goal
-    ));
-
-    setIsEditDialogOpen(false);
-    setEditingGoal(null);
-    showSuccessMessage('Savings goal updated successfully');
+    try {
+      const res = await fetch(`/api/user/savings/${editingGoal.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: editGoalData.name,
+          goalAmount: Number(editGoalData.targetAmount),
+          description: editGoalData.description,
+          targetDate: editGoalData.targetDate,
+          category: editGoalData.category,
+          priority: editGoalData.priority,
+        }),
+      });
+      console.log('Update response:', editingGoal);
+      if (res.ok) {
+        await refetch();
+        setIsEditDialogOpen(false);
+        setEditingGoal(null);
+        showSuccessMessage('Savings goal updated successfully');
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to update savings goal');
+      }
+    } catch (e) {
+      alert('Network error');
+    }
   };
 
   const handleDeleteGoal = (goal: SavingsGoal) => {
+    if (goal.currentAmount > 0) {
+      // Prompt redeem first
+      setRedeemData({
+        goalId: goal.id,
+        walletId: wallets.find(w => w.name.toLowerCase().includes('main'))?.id || wallets[0]?.id || '',
+        amount: goal.currentAmount.toString(),
+      });
+      setIsRedeemDialogOpen(true);
+      setActionSuccess('You must redeem the remaining amount before deleting this goal.');
+      return;
+    }
     setGoalToDelete(goal);
     setIsDeleteDialogOpen(true);
   };
 
-  const confirmDeleteGoal = () => {
+  // DELETE
+  const confirmDeleteGoal = async () => {
     if (!goalToDelete) return;
-
-    setSavingsGoals(prev => prev.filter(goal => goal.id !== goalToDelete.id));
-    setIsDeleteDialogOpen(false);
-    setGoalToDelete(null);
-    showSuccessMessage('Savings goal deleted successfully');
+    try {
+      const res = await fetch(`/api/user/savings/${goalToDelete.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        await refetch();
+        setIsDeleteDialogOpen(false);
+        setGoalToDelete(null);
+        showSuccessMessage('Savings goal deleted successfully');
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete savings goal');
+      }
+    } catch (e) {
+      alert('Network error');
+    }
   };
 
   const handleTransferToGoal = (goalId: string) => {
@@ -311,84 +308,79 @@ export default function SavingsGoals() {
     setIsTransferDialogOpen(true);
   };
 
-  const executeTransfer = () => {
-    if (!transferData.goalId || !transferData.walletId || !transferData.amount) return;
-
-    const amount = parseFloat(transferData.amount);
+  // TOPUP (Transfer)
+  const executeTransfer = async () => {
+    if (!transferData.goalId || !transferData.amount || !transferData.walletId) return;
+    // Find selected wallet (should not be SAVINGS)
     const selectedWallet = wallets.find(w => w.id === transferData.walletId);
-    
-    if (!selectedWallet || selectedWallet.balance < amount) {
-      alert('Insufficient funds in selected wallet');
+    if (!selectedWallet) {
+      alert('Please select a valid wallet');
       return;
     }
-
-    // Update wallet balance
-    setWallets(prev => prev.map(wallet => 
-      wallet.id === transferData.walletId 
-        ? { ...wallet, balance: wallet.balance - amount }
-        : wallet
-    ));
-
-    setSavingsGoals(prev => prev.map(goal => {
-      if (goal.id === transferData.goalId) {
-        const newAmount = goal.currentAmount + amount;
-        const updatedGoal = { ...goal, currentAmount: newAmount };
-        
-        // Auto-complete goal if target is reached
-        if (newAmount >= goal.targetAmount && goal.status === 'ACTIVE') {
-          updatedGoal.status = 'COMPLETED';
-        }
-        
-        return updatedGoal;
+    try {
+      const res = await fetch('/api/user/savings/tx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          amount: Number(transferData.amount),
+          savingsPlanId: transferData.goalId,
+          type: 'TOPUP',
+        }),
+      });
+      if (res.ok) {
+        await refetch();
+        setTransferData({ goalId: '', walletId: '', amount: '' });
+        setIsTransferDialogOpen(false);
+        showSuccessMessage(`Successfully transferred Rp${transferData.amount} to savings goal`);
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to transfer');
       }
-      return goal;
-    }));
-
-    setTransferData({ goalId: '', walletId: '', amount: '' });
-    setIsTransferDialogOpen(false);
-    showSuccessMessage(`Successfully transferred $${amount} to savings goal`);
+    } catch (e) {
+      alert('Network error');
+    }
   };
 
   const handleRedeemFromGoal = (goalId: string) => {
     const goal = savingsGoals.find(g => g.id === goalId);
     if (!goal || goal.status !== 'COMPLETED') return;
-
-    setRedeemData({ 
-      goalId, 
-      walletId: '1', // Default to main wallet
-      amount: goal.currentAmount.toString() 
+    // Find first wallet that is not SAVINGS
+    const mainWallet = wallets.find(w => w.name.toLowerCase().includes('main')) || wallets[0];
+    setRedeemData({
+      goalId,
+      walletId: mainWallet ? mainWallet.id : '',
+      amount: goal.currentAmount.toString(),
     });
     setIsRedeemDialogOpen(true);
   };
 
-  const executeRedeem = () => {
-    if (!redeemData.goalId || !redeemData.walletId || !redeemData.amount) return;
-
-    const amount = parseFloat(redeemData.amount);
-    const goal = savingsGoals.find(g => g.id === redeemData.goalId);
-    
-    if (!goal || amount > goal.currentAmount) {
-      alert('Invalid redeem amount');
-      return;
+  // REDEEM
+  const executeRedeem = async () => {
+    if (!redeemData.goalId || !redeemData.amount) return;
+    try {
+      const res = await fetch('/api/user/savings/tx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          amount: Number(redeemData.amount),
+          savingsPlanId: redeemData.goalId,
+          type: 'REDEEM',
+        }),
+      });
+      if (res.ok) {
+        await refetch();
+        setRedeemData({ goalId: '', walletId: '', amount: '' });
+        setIsRedeemDialogOpen(false);
+        showSuccessMessage(`Successfully redeemed Rp${redeemData.amount} to your wallet`);
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to redeem');
+      }
+    } catch (e) {
+      alert('Network error');
     }
-
-    // Update wallet balance (add money back)
-    setWallets(prev => prev.map(wallet => 
-      wallet.id === redeemData.walletId 
-        ? { ...wallet, balance: wallet.balance + amount }
-        : wallet
-    ));
-
-    // Update goal amount (subtract redeemed amount)
-    setSavingsGoals(prev => prev.map(goal => 
-      goal.id === redeemData.goalId 
-        ? { ...goal, currentAmount: goal.currentAmount - amount }
-        : goal
-    ));
-
-    setRedeemData({ goalId: '', walletId: '', amount: '' });
-    setIsRedeemDialogOpen(false);
-    showSuccessMessage(`Successfully redeemed $${amount} to your wallet`);
   };
 
   const handleStatusChange = (goalId: string, newStatus: SavingsGoal['status']) => {
@@ -459,6 +451,84 @@ export default function SavingsGoals() {
     COMPLETED: savingsGoals.filter(g => g.status === 'COMPLETED').length,
     ARCHIVED: savingsGoals.filter(g => g.status === 'ARCHIVED').length,
     CANCELLED: savingsGoals.filter(g => g.status === 'CANCELLED').length,
+  };
+
+  // Cancel goal
+  const handleCancelGoal = (goal: SavingsGoal) => {
+    if (goal.currentAmount > 0) {
+      setRedeemData({
+        goalId: goal.id,
+        walletId: wallets.find(w => w.name.toLowerCase().includes('main'))?.id || wallets[0]?.id || '',
+        amount: goal.currentAmount.toString(),
+      });
+      setIsRedeemDialogOpen(true);
+      setActionSuccess('You must redeem the remaining amount before cancelling this goal.');
+      return;
+    }
+    setGoalToCancel(goal);
+    setIsCancelDialogOpen(true);
+  };
+
+  const confirmCancelGoal = async () => {
+    if (!goalToCancel) return;
+    try {
+      const res = await fetch(`/api/user/savings/${goalToCancel.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'CANCELLED' }),
+      });
+      if (res.ok) {
+        await refetch();
+        setIsCancelDialogOpen(false);
+        setGoalToCancel(null);
+        showSuccessMessage('Goal cancelled successfully');
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to cancel goal');
+      }
+    } catch (e) {
+      alert('Network error');
+    }
+  };
+
+  // Add a helper for auto complete and redeem
+  const handleCompleteAndRedeem = async (goal: SavingsGoal) => {
+    // 1. Mark as completed
+    try {
+      const patchRes = await fetch(`/api/user/savings/${goal.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'COMPLETED' }),
+      });
+      if (!patchRes.ok) {
+        const data = await patchRes.json();
+        alert(data.error || 'Failed to mark as completed');
+        return;
+      }
+      // 2. Redeem full amount
+      const mainWallet = wallets.find(w => w.name.toLowerCase().includes('main')) || wallets[0];
+      const redeemRes = await fetch('/api/user/savings/tx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          amount: Number(goal.currentAmount),
+          savingsPlanId: goal.id,
+          type: 'REDEEM',
+        }),
+      });
+      if (!redeemRes.ok) {
+        const data = await redeemRes.json();
+        alert(data.error || 'Failed to redeem');
+        return;
+      }
+      await refetch();
+      showSuccessMessage('Goal marked as completed and redeemed!');
+    } catch (e) {
+      alert('Network error');
+    }
   };
 
   return (
@@ -572,23 +642,6 @@ export default function SavingsGoals() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="font-bold uppercase tracking-wider text-sm dark:text-white">Color</Label>
-                    <div className="grid grid-cols-4 gap-2 sm:gap-3">
-                      {colorOptions.map((color) => (
-                        <button
-                          key={color.value}
-                          type="button"
-                          onClick={() => setNewGoal({...newGoal, color: color.value})}
-                          className={`w-10 h-10 sm:w-12 sm:h-12 rounded border-2 sm:border-4 ${color.color} ${
-                            newGoal.color === color.value ? 'border-black dark:border-white' : 'border-gray-300 dark:border-gray-600'
-                          } transition-all hover:scale-105`}
-                          title={color.label}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
                   <div className="flex space-x-3 pt-4">
                     <Button
                       onClick={() => setIsCreateDialogOpen(false)}
@@ -658,7 +711,7 @@ export default function SavingsGoals() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-bold uppercase text-xs sm:text-sm mb-1">Total Saved</p>
-                  <p className="text-2xl sm:text-3xl font-black">${totalSaved.toFixed(2)}</p>
+                  <p className="text-2xl sm:text-2xl font-black">{formatIDR(totalSaved)}</p>
                 </div>
                 <Target className="h-8 w-8 sm:h-10 sm:w-10" />
               </div>
@@ -668,7 +721,7 @@ export default function SavingsGoals() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-bold uppercase text-xs sm:text-sm mb-1 text-emerald-800 dark:text-emerald-200">Total Target</p>
-                  <p className="text-2xl sm:text-3xl font-black text-emerald-900 dark:text-emerald-100">${totalTarget.toFixed(2)}</p>
+                  <p className="text-2xl sm:text-2xl font-black text-emerald-900 dark:text-emerald-100">{formatIDR(totalTarget)}</p>
                 </div>
                 <DollarSign className="h-8 w-8 sm:h-10 sm:w-10 text-emerald-800 dark:text-emerald-200" />
               </div>
@@ -678,7 +731,7 @@ export default function SavingsGoals() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-bold uppercase text-xs sm:text-sm mb-1 text-amber-800 dark:text-amber-200">Filtered Goals</p>
-                  <p className="text-2xl sm:text-3xl font-black text-amber-900 dark:text-amber-100">{filteredGoals.length}</p>
+                  <p className="text-2xl sm:text-2xl font-black text-amber-900 dark:text-amber-100">{filteredGoals.length}</p>
                 </div>
                 <TrendingUp className="h-8 w-8 sm:h-10 sm:w-10 text-amber-800 dark:text-amber-200" />
               </div>
@@ -688,7 +741,7 @@ export default function SavingsGoals() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-bold uppercase text-xs sm:text-sm mb-1 text-sky-800 dark:text-sky-200">Overall Progress</p>
-                  <p className="text-2xl sm:text-3xl font-black text-sky-900 dark:text-sky-100">{overallProgress.toFixed(1)}%</p>
+                  <p className="text-2xl sm:text-2xl font-black text-sky-900 dark:text-sky-100">{overallProgress.toFixed(1)}%</p>
                 </div>
                 <CheckCircle className="h-8 w-8 sm:h-10 sm:w-10 text-sky-800 dark:text-sky-200" />
               </div>
@@ -708,7 +761,7 @@ export default function SavingsGoals() {
                     {/* Header */}
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-4">
-                        <div className={`w-12 h-12 rounded-full ${goal.color} flex items-center justify-center text-white text-xl`}>
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xl`}>
                           {getCategoryIcon(goal.category)}
                         </div>
                         <div>
@@ -720,6 +773,10 @@ export default function SavingsGoals() {
                             <span className={`px-2 py-1 rounded text-xs font-bold text-white ${getStatusColor(goal.status)} flex items-center`}>
                               <StatusIcon className="h-3 w-3 mr-1" />
                               {goal.status}
+                            </span>
+                            <span className={`px-2 py-1 rounded text-xs font-bold text-white ${getStatusColor(goal.category)} flex items-center`}>
+                              <StatusIcon className="h-3 w-3 mr-1" />
+                              {goal.category}
                             </span>
                           </div>
                           <p className="font-semibold text-sm text-gray-600 dark:text-gray-400">{goal.description}</p>
@@ -754,7 +811,7 @@ export default function SavingsGoals() {
                         </div>
                         <div className="w-full bg-gray-200 dark:bg-gray-700 h-4 border-2 border-black dark:border-white">
                           <div 
-                            className={`h-full ${goal.color} transition-all duration-300`}
+                            className={`h-full transition-all duration-300`}
                             style={{ width: `${progress}%` }}
                           ></div>
                         </div>
@@ -765,16 +822,16 @@ export default function SavingsGoals() {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                       <div>
                         <p className="font-bold uppercase text-xs text-gray-600 dark:text-gray-400">Current</p>
-                        <p className="font-black text-lg text-green-600 dark:text-green-400">${goal.currentAmount.toFixed(2)}</p>
+                        <p className="font-black text-lg text-green-600 dark:text-green-400">{formatIDR(goal.currentAmount)}</p>
                       </div>
                       <div>
                         <p className="font-bold uppercase text-xs text-gray-600 dark:text-gray-400">Target</p>
-                        <p className="font-black text-lg dark:text-white">${goal.targetAmount.toFixed(2)}</p>
+                        <p className="font-black text-lg dark:text-white">{formatIDR(goal.targetAmount)}</p>
                       </div>
                       <div>
                         <p className="font-bold uppercase text-xs text-gray-600 dark:text-gray-400">Remaining</p>
                         <p className="font-black text-lg text-orange-600 dark:text-orange-400">
-                          ${Math.max(0, goal.targetAmount - goal.currentAmount).toFixed(2)}
+                          {formatIDR(Math.max(0, goal.targetAmount - goal.currentAmount))}
                         </p>
                       </div>
                       <div>
@@ -798,7 +855,7 @@ export default function SavingsGoals() {
                       )}
                       {goal.status === 'ACTIVE' && (
                         <Button
-                          onClick={() => handleStatusChange(goal.id, 'CANCELLED')}
+                          onClick={() => handleCancelGoal(goal)}
                           className="neo-brutal bg-red-500 text-white font-bold py-2 px-4 text-xs"
                         >
                           <X className="h-3 w-3 mr-1" />
@@ -827,68 +884,62 @@ export default function SavingsGoals() {
 
                     {/* Action Buttons */}
                     <div className="space-y-3">
-                      {/* Transfer Button for Active Goals */}
-                      {goal.status === 'ACTIVE' && progress < 100 && (
+                      {/* If currentAmount === targetAmount and not completed, show only one button */}
+                      {goal.status === 'ACTIVE' && goal.currentAmount === goal.targetAmount && (
                         <Button
-                          onClick={() => handleTransferToGoal(goal.id)}
-                          className="neo-brutal bg-green-500 dark:bg-green-600 text-white font-bold py-3 px-6 w-full hover:bg-green-600 dark:hover:bg-green-700"
+                          onClick={() => handleCompleteAndRedeem(goal)}
+                          className="neo-brutal bg-green-600 text-white font-bold py-3 px-6 w-full hover:bg-green-700"
                         >
-                          <Send className="h-4 w-4 mr-2" />
-                          Transfer Money to Goal
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Mark as Completed & Redeem to Wallet
                         </Button>
                       )}
-
-                      {/* Redeem Button for Completed Goals */}
-                      {goal.status === 'COMPLETED' && goal.currentAmount > 0 && (
-                        <div className="flex flex-col sm:flex-row gap-3">
-                          <Button
-                            onClick={() => handleRedeemFromGoal(goal.id)}
-                            className="neo-brutal bg-blue-500 dark:bg-blue-600 text-white font-bold py-3 px-6 flex-1 hover:bg-blue-600 dark:hover:bg-blue-700"
-                          >
-                            <ArrowDownLeft className="h-4 w-4 mr-2" />
-                            Redeem to Main Wallet
-                          </Button>
-                          <Button
-                            onClick={() => handleStatusChange(goal.id, 'ARCHIVED')}
-                            className="neo-brutal bg-purple-500 text-white font-bold py-3 px-6 flex-1"
-                          >
-                            <Archive className="h-4 w-4 mr-2" />
-                            Archive Goal
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* Status Messages */}
+                      {/* After redeem, if completed and currentAmount === 0, show only Archive button */}
                       {goal.status === 'COMPLETED' && goal.currentAmount === 0 && (
-                        <div className="text-center p-4 bg-green-100 dark:bg-green-900 border-2 border-green-500">
-                          <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-600 dark:text-green-400" />
-                          <p className="font-black uppercase text-green-800 dark:text-green-200">Goal Completed & Redeemed!</p>
-                        </div>
+                        <Button
+                          onClick={() => handleStatusChange(goal.id, 'ARCHIVED')}
+                          className="neo-brutal bg-purple-500 text-white font-bold py-3 px-6 w-full"
+                        >
+                          <Archive className="h-4 w-4 mr-2" />
+                          Archive Goal
+                        </Button>
                       )}
+                      {/* Otherwise, show the rest of the action buttons as before */}
+                      {!(goal.status === 'ACTIVE' && goal.currentAmount === goal.targetAmount) &&
+                        !(goal.status === 'COMPLETED' && goal.currentAmount === 0) && (
+                          <>
+                            {/* Transfer Button for Active Goals */}
+                            {goal.status === 'ACTIVE' && progress < 100 && (
+                              <Button
+                                onClick={() => handleTransferToGoal(goal.id)}
+                                className="neo-brutal bg-green-500 dark:bg-green-600 text-white font-bold py-3 px-6 w-full hover:bg-green-600 dark:hover:bg-green-700"
+                              >
+                                <Send className="h-4 w-4 mr-2" />
+                                Transfer Money to Goal
+                              </Button>
+                            )}
 
-                      {goal.status === 'COMPLETED' && goal.currentAmount > 0 && (
-                        <div className="text-center p-4 bg-green-100 dark:bg-green-900 border-2 border-green-500">
-                          <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-600 dark:text-green-400" />
-                          <p className="font-black uppercase text-green-800 dark:text-green-200">Goal Completed!</p>
-                          <p className="font-semibold text-sm text-green-700 dark:text-green-300 mt-1">
-                            ${goal.currentAmount.toFixed(2)} available to redeem
-                          </p>
-                        </div>
-                      )}
-
-                      {goal.status === 'CANCELLED' && (
-                        <div className="text-center p-4 bg-red-100 dark:bg-red-900 border-2 border-red-500">
-                          <X className="h-8 w-8 mx-auto mb-2 text-red-600 dark:text-red-400" />
-                          <p className="font-black uppercase text-red-800 dark:text-red-200">Goal Cancelled</p>
-                        </div>
-                      )}
-
-                      {goal.status === 'ARCHIVED' && (
-                        <div className="text-center p-4 bg-purple-100 dark:bg-purple-900 border-2 border-purple-500">
-                          <Archive className="h-8 w-8 mx-auto mb-2 text-purple-600 dark:text-purple-400" />
-                          <p className="font-black uppercase text-purple-800 dark:text-purple-200">Goal Archived</p>
-                        </div>
-                      )}
+                            {/* Redeem Button for Completed Goals */}
+                            {goal.status === 'COMPLETED' && goal.currentAmount > 0 && (
+                              <div className="flex flex-col sm:flex-row gap-3">
+                                <Button
+                                  onClick={() => handleRedeemFromGoal(goal.id)}
+                                  className="neo-brutal bg-blue-500 dark:bg-blue-600 text-white font-bold py-3 px-6 flex-1 hover:bg-blue-600 dark:hover:bg-blue-700"
+                                >
+                                  <ArrowDownLeft className="h-4 w-4 mr-2" />
+                                  Redeem to Main Wallet
+                                </Button>
+                                <Button
+                                  onClick={() => handleStatusChange(goal.id, 'ARCHIVED')}
+                                  className="neo-brutal bg-purple-500 text-white font-bold py-3 px-6 flex-1"
+                                >
+                                  <Archive className="h-4 w-4 mr-2" />
+                                  Archive Goal
+                                </Button>
+                              </div>
+                            )}
+                          </>
+                        )}
                     </div>
                   </div>
                 </Card>
@@ -938,7 +989,7 @@ export default function SavingsGoals() {
                         <SelectItem key={wallet.id} value={wallet.id}>
                           <div className="flex items-center space-x-3">
                             <div className={`w-4 h-4 rounded-full ${wallet.color}`}></div>
-                            <span>{wallet.name} - ${wallet.balance.toFixed(2)}</span>
+                            <span>{wallet.name} - {formatIDR(wallet.balance)}</span>
                           </div>
                         </SelectItem>
                       ))}
@@ -1005,7 +1056,7 @@ export default function SavingsGoals() {
                         <SelectItem key={wallet.id} value={wallet.id}>
                           <div className="flex items-center space-x-3">
                             <div className={`w-4 h-4 rounded-full ${wallet.color}`}></div>
-                            <span>{wallet.name} - ${wallet.balance.toFixed(2)}</span>
+                            <span>{wallet.name} - {formatIDR(wallet.balance)}</span>
                           </div>
                         </SelectItem>
                       ))}
@@ -1025,7 +1076,7 @@ export default function SavingsGoals() {
                   />
                   {redeemData.goalId && (
                     <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-                      Available: ${savingsGoals.find(g => g.id === redeemData.goalId)?.currentAmount.toFixed(2) || '0.00'}
+                      Available: {formatIDR(savingsGoals.find(g => g.id === redeemData.goalId)?.currentAmount || 0)}
                     </p>
                   )}
                 </div>
@@ -1134,23 +1185,6 @@ export default function SavingsGoals() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="font-bold uppercase tracking-wider text-sm dark:text-white">Color</Label>
-                  <div className="grid grid-cols-4 gap-2 sm:gap-3">
-                    {colorOptions.map((color) => (
-                      <button
-                        key={color.value}
-                        type="button"
-                        onClick={() => setEditGoalData({...editGoalData, color: color.value})}
-                        className={`w-10 h-10 sm:w-12 sm:h-12 rounded border-2 sm:border-4 ${color.color} ${
-                          editGoalData.color === color.value ? 'border-black dark:border-white' : 'border-gray-300 dark:border-gray-600'
-                        } transition-all hover:scale-105`}
-                        title={color.label}
-                      />
-                    ))}
-                  </div>
-                </div>
-
                 <div className="flex space-x-3 pt-4">
                   <Button
                     onClick={() => setIsEditDialogOpen(false)}
@@ -1182,15 +1216,18 @@ export default function SavingsGoals() {
                   <div>
                     <p className="font-bold text-sm dark:text-white">Are you sure you want to delete this goal?</p>
                     <p className="font-semibold text-xs text-gray-600 dark:text-gray-400 mt-1">
-                      {goalToDelete?.name} - ${goalToDelete?.currentAmount.toFixed(2)} saved
+                      {goalToDelete?.name} - {formatIDR(goalToDelete?.currentAmount || 0)} saved
                     </p>
                   </div>
                 </div>
-                
+                {goalToDelete?.currentAmount && goalToDelete.currentAmount > 0 && (
+                  <p className="font-semibold text-sm text-red-700 dark:text-red-300">
+                    You must redeem the remaining amount before deleting this goal.
+                  </p>
+                )}
                 <p className="font-semibold text-sm text-gray-700 dark:text-gray-300">
                   This action cannot be undone. The saved amount will remain in your account, but the goal tracking will be permanently deleted.
                 </p>
-
                 <div className="flex space-x-3 pt-4">
                   <Button
                     onClick={() => setIsDeleteDialogOpen(false)}
@@ -1200,9 +1237,53 @@ export default function SavingsGoals() {
                   </Button>
                   <Button
                     onClick={confirmDeleteGoal}
+                    disabled={!!(goalToDelete?.currentAmount && goalToDelete.currentAmount > 0)}
                     className="bg-red-500 dark:bg-red-600 text-white border-2 border-black dark:border-white flex-1 font-bold py-3 uppercase tracking-wider hover:bg-red-600 dark:hover:bg-red-700"
                   >
                     Delete Goal
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Cancel Confirmation Dialog */}
+          <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+            <DialogContent className="bg-white dark:bg-gray-800 border-4 border-black dark:border-white max-w-md mx-auto p-6">
+              <DialogHeader>
+                <DialogTitle className="text-xl sm:text-2xl font-black uppercase text-red-600 dark:text-red-400">Cancel Savings Goal</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 sm:space-y-6">
+                <div className="flex items-center space-x-3 p-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800">
+                  <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                  <div>
+                    <p className="font-bold text-sm dark:text-white">Are you sure you want to cancel this goal?</p>
+                    <p className="font-semibold text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      {goalToCancel?.name} - {formatIDR(goalToCancel?.currentAmount || 0)} saved
+                    </p>
+                  </div>
+                </div>
+                {goalToCancel?.currentAmount && goalToCancel.currentAmount > 0 && (
+                  <p className="font-semibold text-sm text-red-700 dark:text-red-300">
+                    You must redeem the remaining amount before cancelling this goal.
+                  </p>
+                )}
+                <p className="font-semibold text-sm text-gray-700 dark:text-gray-300">
+                  This will set the goal status to CANCELLED. You can reactivate it later if needed.
+                </p>
+                <div className="flex space-x-3 pt-4">
+                  <Button
+                    onClick={() => setIsCancelDialogOpen(false)}
+                    className="bg-gray-300 dark:bg-gray-600 text-black dark:text-white border-2 border-black dark:border-white flex-1 font-bold py-3 uppercase tracking-wider hover:bg-gray-400 dark:hover:bg-gray-700"
+                  >
+                    No
+                  </Button>
+                  <Button
+                    onClick={confirmCancelGoal}
+                    disabled={!!(goalToCancel?.currentAmount && goalToCancel.currentAmount > 0)}
+                    className="bg-red-500 dark:bg-red-600 text-white border-2 border-black dark:border-white flex-1 font-bold py-3 uppercase tracking-wider hover:bg-red-600 dark:hover:bg-red-700"
+                  >
+                    Yes, Cancel Goal
                   </Button>
                 </div>
               </div>

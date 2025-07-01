@@ -88,7 +88,7 @@ export default function Sidebar({ user, collapsed, onToggle, onLogout }: Sidebar
                   <CreditCard className="h-5 w-5 sm:h-8 sm:w-8" />
                 </div>
                 {!collapsed && (
-                  <span className="text-lg sm:text-2xl font-black uppercase tracking-wider dark:text-white">MBank</span>
+                  <span className="text-lg sm:text-2xl font-black uppercase tracking-wider dark:text-white">BANK SAWAN</span>
                 )}
               </div>
               <div className="flex items-center space-x-2">

@@ -20,7 +20,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
     const { id } = params;
     const body = await request.json();
-    const { title, goalAmount, description, targetDate, status: planStatus } = body;
+    const { title, goalAmount, description, targetDate, status: planStatus, category, priority } = body;
     // Check ownership
     const existingPlan = await prisma.savingsPlan.findFirst({
       where: { id, userId: user.userId, isDeleted: false },
@@ -36,6 +36,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         description,
         targetDate: targetDate ? new Date(targetDate) : undefined,
         status: planStatus,
+        category, // add category
+        priority, // add priority
       },
     });
     return NextResponse.json(updatedPlan);

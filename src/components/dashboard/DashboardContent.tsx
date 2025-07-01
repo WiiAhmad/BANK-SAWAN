@@ -77,15 +77,18 @@ export default function DashboardContent({ user }: DashboardContentProps) {
   }));
 
   // Map API data to local SavingsGoal type (limit 3)
-  const savingsGoals: SavingsGoal[] = (apiSavings || []).slice(0, 3).map((s: any) => ({
-    id: s.id,
-    name: s.title,
-    targetAmount: Number(s.goalAmount),
-    currentAmount: Number(s.currentAmount),
-    targetDate: s.targetDate,
-    category: s.category || '',
-    color: 'bg-blue-500', // You can map category to color if needed
-  }));
+  const savingsGoals: SavingsGoal[] = (apiSavings || [])
+    .filter((s: any) => s.status !== 'COMPLETED') // Exclude COMPLETED goals
+    .slice(0, 2)
+    .map((s: any) => ({
+      id: s.id,
+      name: s.title,
+      targetAmount: Number(s.goalAmount),
+      currentAmount: Number(s.currentAmount),
+      targetDate: s.targetDate,
+      category: s.category || '',
+      color: 'bg-blue-500', // You can map category to color if needed
+    }));
 
   // Map API data to local Transaction type (limit 5)
   const userId = (user as any).id || '';
@@ -379,7 +382,9 @@ export default function DashboardContent({ user }: DashboardContentProps) {
                         </div>
                         <div>
                           <p className="font-bold uppercase text-xs sm:text-sm mb-1">{goal.name}</p>
-                          <p className="text-xs text-gray-500">Target: {goal.targetDate}</p>
+                          <p className="font-bold text-xs text-gray-500">
+                          Target: {new Date(goal.targetDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </p>
                         </div>
                       </div>
                       <span className="text-xs font-bold uppercase bg-blue-100 text-blue-800 px-2 py-1 rounded">{goal.category}</span>
