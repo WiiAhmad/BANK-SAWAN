@@ -4,9 +4,13 @@ import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { authenticateRequest } from '@/lib/auth'; // Assuming you have a decryptToken function
 
+interface MyParams extends NextResponse {
+    params: Promise<{ id: string }>;
+}
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: MyParams
 ) {
   try {
     const { user, error, status } = await authenticateRequest(request);
@@ -14,7 +18,7 @@ export async function GET(
       return NextResponse.json({ error }, { status });
     }
 
-    const walletId = params.id; // Get wallet ID from the URL
+    const walletId = (await params).id; // Get wallet ID from the URL
 
     // Check if the wallet belongs to the user
     const wallet = await prisma.wallet.findUnique({

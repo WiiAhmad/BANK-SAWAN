@@ -643,7 +643,7 @@ export default function SuperAdminDashboard() {
                             </div>
                             <div>
                               <p className="font-bold text-sm truncate max-w-xs" title={tx.description || 'Transaction'}>
-                                {(tx.description && tx.description.length > 30)
+                                {(tx.description && tx.description.length > 25)
                                   ? `${tx.description.slice(0, 17)}...`
                                   : (tx.description || 'Transaction')}
                               </p>

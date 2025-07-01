@@ -3,13 +3,15 @@ import { NextResponse, NextRequest } from 'next/server';
 import {prisma} from '@/lib/prisma';
 import { decryptToken, verifyToken, verifyPassword, hashPassword } from '@/lib/auth'; // Assuming you have a decryptToken function
 
+interface MyParams extends NextResponse {
+    params: Promise<{ id: string }>;
+}
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: MyParams
 ) {
-    
   try {
-    const { id: userId } = await params;
+    const userId = (await params).id;
     const userToken = request.cookies.get('token')?.value;
 
     if (!userToken) {
@@ -54,10 +56,10 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: MyParams
 ) {
   try {
-    const { id: userId } = await params;
+    const userId = (await params).id;
     const userToken = request.cookies.get('token')?.value;
 
     if (!userToken) {

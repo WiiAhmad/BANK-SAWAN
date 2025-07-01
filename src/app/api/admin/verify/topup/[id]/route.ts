@@ -3,14 +3,17 @@ import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { decryptToken } from '@/lib/auth'; // Assuming you have a decryptToken function
 
+interface MyParams extends NextResponse {
+    params: Promise<{ id: string }>;
+}
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: MyParams
 ) {
     try {
         const body = await request.json();
         const { status } = body;
-        const topupId = await params.id; // Get topup request ID from the URL
+        const topupId = (await params).id; // Get topup request ID from the URL
         // console.log('params:', params);
         // if (!params.id || typeof params.id !== 'string') {
         //     return NextResponse.json(

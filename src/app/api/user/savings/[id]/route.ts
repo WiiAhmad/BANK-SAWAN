@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticateRequest } from '@/lib/auth';
 
+interface MyParams extends NextResponse {
+    params: Promise<{ id: string }>;
+}
+
 // PATCH: Update a specific savings plan
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: MyParams ) {
   try {
     // Read cookies from the request
     const userToken = request.cookies.get('token')?.value
@@ -18,7 +22,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (error || !user) {
       return NextResponse.json({ error: error || 'Unauthorized' }, { status: status || 401 });
     }
-    const { id } = params;
+    const id = (await params).id;
     const body = await request.json();
     const { title, goalAmount, description, targetDate, status: planStatus, category, priority } = body;
     // Check ownership
@@ -47,13 +51,13 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 // DELETE: Soft delete a specific savings plan
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: MyParams) {
   try {
     const { user, error, status } = await authenticateRequest(request);
     if (error || !user) {
       return NextResponse.json({ error: error || 'Unauthorized' }, { status: status || 401 });
     }
-    const { id } = params;
+    const id = (await params).id;
     // Check ownership
     const existingPlan = await prisma.savingsPlan.findFirst({
       where: { id, userId: user.userId, isDeleted: false },

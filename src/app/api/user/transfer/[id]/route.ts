@@ -2,14 +2,17 @@ import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { decryptToken } from '@/lib/auth';
 
+interface MyParams extends NextResponse {
+    params: Promise<{ id: string }>;
+}
+
 export async function POST(
     request: NextRequest,
-    context: { params: { id: string } }
+    { params }: MyParams
 ) {
     try {
         // Await params for Next.js App Router
-        const { params } = context;
-        const walletSenderId = params.id;
+        const walletSenderId = (await params).id;
         const token = request.cookies.get('token')?.value;
         if (!token) {
             return NextResponse.json({ error: 'Unauthorized: No token. Please provide a valid authentication token in your cookies.' }, { status: 401 });

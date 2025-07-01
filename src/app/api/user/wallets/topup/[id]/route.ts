@@ -3,9 +3,13 @@ import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { decryptToken } from '@/lib/auth'; // Assuming you have a decryptToken function
 
+interface MyParams extends NextResponse {
+    params: Promise<{ id: string }>;
+}
+
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: MyParams
 ) {
     try {
         const { amount, paymentMethod } = await request.json();
@@ -33,7 +37,7 @@ export async function POST(
             );
         }
 
-        const walletId = params.id; // Get wallet ID from the URL
+        const walletId = (await params).id; // Get wallet ID from the URL
 
         // Check if the wallet belongs to the user
         const wallet = await prisma.wallet.findUnique({

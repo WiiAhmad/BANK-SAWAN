@@ -10,9 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { 
   ArrowLeft, 
   Send, 
-  Wallet,
-  CreditCard,
-  DollarSign,
   CheckCircle
 } from 'lucide-react';
 import { useAllWallets } from '@/hooks/UserData';
@@ -38,7 +35,6 @@ interface Wallet {
 
 export default function Transfer() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { wallets: apiWallets, loading: walletsLoading } = useAllWallets();
   const [transferData, setTransferData] = useState({
     fromWallet: '',

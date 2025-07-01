@@ -5,14 +5,12 @@ import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { authenticateRequest } from '@/lib/auth'; // Assuming you have a decryptToken function
 
-/**
- * GET a specific wallet by its ID.
- * Ensures the wallet belongs to the authenticated user.
- * Now excludes soft-deleted wallets (isDeleted=true).
- */
+interface MyParams extends NextResponse {
+    params: Promise<{ id: string }>;
+}
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: MyParams
 ) {
   try {
     const { user, error, status } = await authenticateRequest(request);
@@ -20,7 +18,7 @@ export async function GET(
       return NextResponse.json({ error }, { status });
     }
 
-    const { id: walletId } = await params;
+    const walletId = (await params).id;
 
     const wallet = await prisma.wallet.findUnique({
       where: {
@@ -53,7 +51,7 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: MyParams
 ) {
   try {
     const { user, error, status } = await authenticateRequest(request);
@@ -61,7 +59,7 @@ export async function PATCH(
       return NextResponse.json({ error }, { status });
     }
 
-    const { id: walletId } = await params; // Await params for Next.js dynamic route
+    const walletId = (await params).id; // Await params for Next.js dynamic route
     const body = await request.json();
 
     // Fields that are allowed to be updated
@@ -116,7 +114,7 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: MyParams
 ) {
   try {
     const { user, error, status } = await authenticateRequest(request);
@@ -124,7 +122,7 @@ export async function DELETE(
       return NextResponse.json({ error }, { status });
     }
 
-    const { id: walletId } = params;
+    const walletId = (await params).id;
 
     // Prevent deletion of the main wallet
     const wallet = await prisma.wallet.findFirst({

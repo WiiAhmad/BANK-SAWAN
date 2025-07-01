@@ -82,7 +82,7 @@ export default function Navbar({ user, onLogout }: NavbarProps) {
             <div className="neo-brutal bg-black dark:bg-white text-white dark:text-black p-2">
               <CreditCard className="h-5 w-5" />
             </div>
-            <span className="text-lg font-black uppercase tracking-wider dark:text-white">MBank</span>
+            <span className="text-lg font-black uppercase tracking-wider dark:text-white">BANK SAWAN</span>
           </Link>
 
           {/* Theme Toggle and Menu Button */}
@@ -90,7 +90,7 @@ export default function Navbar({ user, onLogout }: NavbarProps) {
             {/* <ThemeToggle /> */}
             <Button
               onClick={() => setIsOpen(!isOpen)}
-              className="neo-brutal bg-white dark:bg-gray-700 dark:text-white p-2"
+              className="neo-brutal dark:bg-gray-700 dark:text-white p-2"
               size="sm"
             >
               {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
