@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Sanitize transactions to hide sensitive user info
-        const safeTransactions = transactions.map(tx => ({
+        const safeTransactions = transactions.map((tx: { [key: string]: any; sender?: { id: string; name: string; email: string } | null; receiver?: { id: string; name: string; email: string } | null }) => ({
             ...tx,
             sender: tx.sender ? {
                 id: tx.sender.id,
