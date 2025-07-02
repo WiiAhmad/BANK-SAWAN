@@ -60,7 +60,7 @@ export async function POST(
         }
 
         // Transfer: update balances and create transaction
-        const transfer = await prisma.$transaction(async (tx) => {
+        const transfer = await prisma.$transaction(async (tx: any) => {
             await tx.wallet.update({
                 where: { id: senderWallet.id },
                 data: { balance: { decrement: amount } },
