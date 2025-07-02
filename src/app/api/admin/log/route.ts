@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { decryptToken } from '@/lib/auth';
-import { Log, User } from '@prisma/client'; // Import types from Prisma
 
 // Admin route: show all logs, only for admin
 export async function GET(request: NextRequest) {
@@ -31,9 +30,8 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Type logs for map
-        type LogWithUser = Log & { user: Pick<User, 'id' | 'name' | 'email' | 'role'> | null };
-        const safeLogs = (logs as LogWithUser[]).map(log => ({
+        // Use inline type for log
+        const safeLogs = logs.map((log: { [key: string]: any; user?: { id: string; name: string; email: string; role: string } | null }) => ({
             ...log,
             user: log.user ? {
                 id: log.user.id,
