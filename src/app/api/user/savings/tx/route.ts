@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Insufficient balance in main wallet' }, { status: 400 });
       }
       // Topup: main -> savings
-      const transaction = await prisma.$transaction(async (tx) => {
+      const transaction = await prisma.$transaction(async (tx: any) => {
         await tx.wallet.update({
           where: { id: mainWallet.id },
           data: { balance: { decrement: amount } },
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Insufficient current amount in savings plan' }, { status: 400 });
       }
       // Redeem: savings -> main
-      const transaction = await prisma.$transaction(async (tx) => {
+      const transaction = await prisma.$transaction(async (tx: any) => {
         await tx.wallet.update({
           where: { id: savingsWallet.id },
           data: { balance: { decrement: amount } },
