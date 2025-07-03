@@ -103,7 +103,7 @@ export default function Home() {
       {/* Stats Section */}
       <section className="container mx-auto px-4 py-8 sm:py-16">
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-          <div className="neo-brutal neo-brutal-card bg-black dark:bg-white text-white dark:text-black text-center">
+          <div className="neo-brutal neo-brutal-card bg-gradient-to-r from-indigo-100 to-violet-400 text-black text-center">
             <TrendingUp className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-4" />
             <div className="text-2xl sm:text-4xl font-black mb-2">$2.5B+</div>
             <div className="font-bold uppercase tracking-wider text-sm sm:text-base">Transactions Daily</div>
@@ -113,7 +113,7 @@ export default function Home() {
             <div className="text-2xl sm:text-4xl font-black mb-2 text-emerald-800 dark:text-emerald-200">5M+</div>
             <div className="font-bold uppercase tracking-wider text-sm sm:text-base text-emerald-800 dark:text-emerald-200">Happy Customers</div>
           </div>
-          <div className="neo-brutal neo-brutal-card bg-indigo-500 dark:bg-indigo-600 text-white text-center sm:col-span-2 lg:col-span-1">
+          <div className="neo-brutal neo-brutal-card bg-gradient-to-r from-indigo-400 to-violet-600 text-center sm:col-span-2 lg:col-span-1">
             <Star className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-4" />
             <div className="text-2xl sm:text-4xl font-black mb-2">4.9/5</div>
             <div className="font-bold uppercase tracking-wider text-sm sm:text-base">App Store Rating</div>
