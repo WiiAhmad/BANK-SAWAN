@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db": "npx prisma db push --force-reset && ts-node ./prisma/seed.ts && npx prisma studio"
+    "db": "npx prisma db push --force-reset && tsx ./prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.10.1",
@@ -55,6 +55,7 @@
     "recharts": "^3.0.2",
     "sonner": "^2.0.5",
     "tailwind-merge": "^3.3.1",
+    "tsx": "^4.20.3",
     "vaul": "^1.1.2"
   },
   "devDependencies": {
